@@ -1,0 +1,65 @@
+name: fitlens
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0' # I've updated this to a more modern SDK range
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  video_player: ^2.10.0
+  lottie: ^3.1.2 # Using a more recent stable version
+
+  # --- USE THESE CORRECT, STABLE VERSIONS ---
+  firebase_core: ^3.1.1
+  firebase_auth: ^5.1.1
+  google_sign_in: ^6.2.1
+  cloud_firestore: ^5.0.1 # Using a matching stable version
+  firebase_storage: ^12.1.0
+
+  image_picker: ^1.1.2 # Using a matching stable version
+  permission_handler: ^11.3.1 # Using a matching stable version
+  #flutter_image_compress: ^2.4.0
+  path_provider: ^2.1.5
+  cloud_functions: ^5.6.2
+  http: ^1.6.0
+  # ------------------------------------------
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0 # Using a more modern linter
+
+  # --- MOVED THIS FROM DEPENDENCIES (THIS IS THE FIX) ---
+  flutter_launcher_icons: ^0.13.1
+  # ---------------------------------------------------
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/ # This line correctly includes your logo.png, pic2.jpg, etc.
+
+  # (The rest of the 'flutter:' section for fonts, etc., is commented out
+  #  so you can add them later if you want)
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+
+# --- ADD THIS ENTIRE NEW SECTION AT THE VERY BOTTOM ---
+# This is the configuration for your app icon
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png" # <-- It's using your logo file!
+  min_sdk_android: 21
+# --- END OF NEW SECTION ---

@@ -1,0 +1,193 @@
+// lib/screens/signup_screen.dart
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/auth_service.dart';
+
+class SignUpScreen extends StatefulWidget {
+  SignUpScreen({super.key});
+
+  @override
+  State<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final AuthService _authService = AuthService();
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isPasswordObscured = true;
+  bool _isLoading = false;
+
+  // Colors
+  final Color mainTextColor = const Color(0xFF5F7E5B);
+  final Color buttonColor = const Color(0xFFF6F5F0);
+  final Color screenBgColor = const Color(0xFFDFE2D1);
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _signUp() async {
+    setState(() { _isLoading = true; });
+
+    final String name = _nameController.text.trim();
+    final String password = _passwordController.text.trim();
+
+    // 1. Validate Name
+    if (!RegExp(r'^[a-zA-Z]+$').hasMatch(name)) {
+      _showErrorSnackBar("Name must be one word, letters only.");
+      setState(() { _isLoading = false; });
+      return;
+    }
+
+    // --- 2. THE NEW STRONG PASSWORD GATEKEEPER ---
+    // Rules: At least 8 chars, 1 Uppercase, 1 Number, 1 Symbol
+    // Explanation of Regex:
+    // (?=.*[A-Z]) -> Must contain an Uppercase
+    // (?=.*[0-9]) -> Must contain a Number
+    // (?=.*[!@#\$&*~]) -> Must contain a Symbol
+    // .{8,}       -> Must be at least 8 chars long
+
+    RegExp strongPasswordRegex = RegExp(r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$&*~]).{8,}$');
+
+    if (!strongPasswordRegex.hasMatch(password)) {
+      _showErrorSnackBar("Password must be 8+ chars, with 1 Uppercase, 1 Number & 1 Symbol (!@#\$&*)");
+      setState(() { _isLoading = false; });
+      return; // STOP HERE! Don't send to Firebase.
+    }
+    // ---------------------------------------------
+
+    try {
+      await _authService.signUpWithEmail(
+        name,
+        _emailController.text.trim(),
+        password,
+      );
+
+      setState(() { _isLoading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign up successful! Please verify email.'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context);
+
+    } on FirebaseAuthException catch (e) {
+      setState(() { _isLoading = false; });
+      _showErrorSnackBar(e.message ?? "An error occurred.");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: screenBgColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: mainTextColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  "Create Account",
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+              ),
+              SizedBox(height: 40),
+
+              _buildModernTextField(
+                controller: _nameController,
+                hint: "First Name",
+                icon: Icons.person_outline,
+                formatter: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]'))],
+              ),
+              SizedBox(height: 15),
+
+              _buildModernTextField(
+                controller: _emailController,
+                hint: "Email Address",
+                icon: Icons.email_outlined,
+              ),
+              SizedBox(height: 15),
+
+              _buildModernTextField(
+                controller: _passwordController,
+                hint: "Password",
+                icon: Icons.lock_outline,
+                isObscured: _isPasswordObscured,
+                suffixIcon: IconButton(
+                  icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                  onPressed: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
+                ),
+              ),
+
+              SizedBox(height: 40),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: _signUp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF8B8BAE),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 2,
+                  ),
+                  child: _isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text("Sign Up", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isObscured = false,
+    Widget? suffixIcon,
+    List<TextInputFormatter>? formatter,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: isObscured,
+      inputFormatters: formatter,
+      style: TextStyle(color: mainTextColor),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: mainTextColor.withOpacity(0.6), fontSize: 14),
+        prefixIcon: Icon(icon, color: mainTextColor, size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(vertical: 18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: Colors.black, width: 1),
+        ),
+      ),
+    );
+  }
+}

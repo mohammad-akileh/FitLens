@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "28395191603",
+    "project_id": "fitlens-project-e33a8",
+    "storage_bucket": "fitlens-project-e33a8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:28395191603:android:f446b64080a04582fe1246",
+        "android_client_info": {
+          "package_name": "com.example.fitlens"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "28395191603-hlehvcjvplksge01kap4e1br6umrjja2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fitlens",
+            "certificate_hash": "d7e8d85ab8f392dcd42363e16eed1393750d73df"
+          }
+        },
+        {
+          "client_id": "28395191603-j60gnvpi4s9anu5l5i3a5fhpetai71ot.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fitlens",
+            "certificate_hash": "61aa4f5f6699d769506a59ee2dec30644ca6c305"
+          }
+        },
+        {
+          "client_id": "28395191603-7e5di0aroihb5oubgrpnvemja0l6mbhg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFfplJ2YO9MJnzqJrq5sKLP4NRmTiy95s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "28395191603-7e5di0aroihb5oubgrpnvemja0l6mbhg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "28395191603-ldh3dreuphhlfnb9792bqbcfu6m27hoh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fitlens"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
