@@ -2,10 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
-import '../../services/calculator_service.dart';
-import '../home_screen.dart';
-import '../../widgets/onboarding_card.dart';
+import '../../utils/calculator.dart'; // ✅ Using the new Brain
 import '../main_screen.dart';
+import '../../widgets/onboarding_card.dart';
 
 class OnboardingFinalResultScreen extends StatefulWidget {
   final String gender;
@@ -16,8 +15,8 @@ class OnboardingFinalResultScreen extends StatefulWidget {
   final String heightUnit;
   final String goal;
   final String mealFrequency;
-  final String weekendHabit; // "Yes" or "No"
-  final String weekendDays;  // "Fridays and Saturdays", etc.
+  final String weekendHabit;
+  final String weekendDays;
 
   const OnboardingFinalResultScreen({
     super.key,
@@ -48,31 +47,64 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
     setState(() => _isLoading = true);
     try {
       final String uid = FirebaseAuth.instance.currentUser!.uid;
-      final CalculatorService calculator = CalculatorService();
 
-      // 1. Convert units for math (Metric is standard for BMR formulas)
-      double weightKg = widget.weightUnit == 'kg' ? widget.weightVal : widget.weightVal / 2.20462;
-      double heightCm = widget.heightUnit == 'cm' ? widget.heightVal : widget.heightVal * 2.54;
+      // 1. Convert units for math (Metric is standard for formulas)
+      // If lb -> kg. If cm -> cm.
+      int weightKg = widget.weightUnit == 'kg'
+          ? widget.weightVal.round()
+          : (widget.weightVal / 2.20462).round();
 
-      // 2. Calculate BMR (Base Metabolic Rate)
-      double bmr = calculator.calculateBMR(
+      int heightCm = widget.heightUnit == 'cm'
+          ? widget.heightVal.round()
+          : (widget.heightVal * 2.54).round();
+
+      // 2. Calculate BMR (The Base)
+      double bmr = Calculator.calculateBMR(
         gender: widget.gender,
         weightKg: weightKg,
         heightCm: heightCm,
         age: widget.age,
       );
 
-      String activityLevel = "Moderate"; // Defaulting to Moderate for now
+      // 3. Activity Level
+      // For now, we assume "Moderate" (1.375) as a safe start for everyone.
+      // Later you can add a screen to ask this!
+      double activityMultiplier = 1.375;
 
-      // 3. Calculate Targets (The "Math" part!)
-      // This creates the map: {'calories': 2200, 'protein': 150, ...}
-      Map<String, int> dailyGoals = calculator.calculateDailyGoals(
-        bmr: bmr,
-        activityLevel: activityLevel,
-        goal: widget.goal, // <--- PASS THE GOAL HERE!
+      // 4. Calculate Total Daily Calories
+      double targetCalories = Calculator.calculateTargetCalories(
+          bmr,
+          activityMultiplier: activityMultiplier
       );
 
-      // 4. Save EVERYTHING to Firestore
+      // 5. Calculate Macros (Based on User Goal)
+      // Goals: 'Gain Weight' -> 'muscle', 'Lose Weight' -> 'loss', else 'maintain'
+      String macroGoal = 'maintain';
+      if (widget.goal.toLowerCase().contains('gain')) macroGoal = 'muscle';
+      if (widget.goal.toLowerCase().contains('lose')) macroGoal = 'loss';
+
+      Map<String, double> macros = Calculator.calculateMacros(
+          targetCalories,
+          goal: macroGoal
+      );
+
+      // 6. Calculate Water Need
+      double waterLiter = Calculator.calculateWater(
+        weightKg: weightKg,
+        exerciseHours: 0.5, // Assuming 30 mins average activity
+      );
+
+      // 7. Pack it all into a Map for the Database
+      // Note: We round numbers to make them clean (e.g., 2200 instead of 2200.45)
+      Map<String, int> dailyGoals = {
+        'calories': targetCalories.round(),
+        'protein': macros['protein']!.round(),
+        'carb': macros['carb']!.round(),
+        'fat': macros['fat']!.round(),
+        'water': (waterLiter * 1000).round(), // Store as mL (e.g., 2500 ml)
+      };
+
+      // 8. Save EVERYTHING to Firestore
       await DatabaseService().saveUserProfile(
         uid: uid,
         gender: widget.gender,
@@ -85,12 +117,11 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
         mealFrequency: widget.mealFrequency,
         snackHabit: widget.weekendHabit,
         weekendHabit: widget.weekendDays,
-        activityLevel: activityLevel,
-        // --- THIS IS THE NEW PART ---
-        dailyGoals: dailyGoals, // Passing the calculated targets to be saved!
+        activityLevel: "Moderate", // Saving the string for display
+        dailyGoals: dailyGoals, // ✅ SAVING THE CALCULATED MATH!
       );
 
-      // 5. Navigate to the Main Dashboard
+      // 9. Navigate to the Main Dashboard
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -99,6 +130,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
         );
       }
     } catch (e) {
+      print("Error saving profile: $e"); // Debug print
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
       }
@@ -149,9 +181,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
                 ),
                 SizedBox(height: 40),
 
-                // --- SMART CHART WIDGET ---
                 _buildDynamicChart(),
-                // --------------------------
 
                 SizedBox(height: 40),
 
@@ -188,9 +218,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
     );
   }
 
-  // --- THE NEW LOGIC IS HERE ---
   Widget _buildDynamicChart() {
-    // 1. Analyze the user's choice
     bool friHigh = widget.weekendDays.contains("Fridays");
     bool satHigh = widget.weekendDays.contains("Saturdays");
     bool sunHigh = widget.weekendDays.contains("Sundays");
@@ -206,8 +234,6 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
           _buildSingleBar("T", 0.6, false),
           _buildSingleBar("W", 0.6, false),
           _buildSingleBar("T", 0.6, false),
-
-          // 2. Pass the True/False logic to the bars
           _buildSingleBar("F", friHigh ? 0.9 : 0.6, friHigh),
           _buildSingleBar("S", satHigh ? 1.0 : 0.6, satHigh),
           _buildSingleBar("S", sunHigh ? 1.0 : 0.6, sunHigh),
@@ -225,12 +251,12 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
           height: 120 * heightFactor,
           width: 20,
           decoration: BoxDecoration(
-            color: isHighlight ? mainTextColor : inactiveBarColor, // Highlight color logic
+            color: isHighlight ? mainTextColor : inactiveBarColor,
             borderRadius: BorderRadius.circular(10),
           ),
         ),
         SizedBox(height: 10),
-        Text(//m,26,72,180,gain,5,no,1
+        Text(
           day,
           style: TextStyle(
             fontWeight: FontWeight.bold,
