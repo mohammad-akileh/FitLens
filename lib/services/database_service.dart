@@ -7,7 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // 1. UPDATE: Save User Profile with TARGETS
+// 1. UPDATE: Save User Profile with TARGETS
   Future<void> saveUserProfile({
     required String uid,
     required String gender,
@@ -21,7 +21,6 @@ class DatabaseService {
     String? snackHabit,
     String? weekendHabit,
     String? activityLevel,
-    // --- NEW: Accept the calculated goals ---
     Map<String, int>? dailyGoals,
   }) async {
     try {
@@ -38,13 +37,18 @@ class DatabaseService {
         'weekend_habit': weekendHabit,
         'activity_level': activityLevel,
         'onboarding_completed': true,
-        // --- SAVE TARGETS TO DB ---
+
+        // Target Calories
         'target_calories': dailyGoals?['calories'] ?? 2000,
         'target_protein': dailyGoals?['protein'] ?? 150,
-        'target_carbs': dailyGoals?['carbs'] ?? 250,
+        'target_carbs': dailyGoals?['carb'] ?? 250, // Careful: key might be 'carb' or 'carbs' in your map
         'target_fat': dailyGoals?['fat'] ?? 65,
+
+        // 🔐 THE MISSING KEY! ADD THIS LINE:
+        'app_secret': 'FitLens_VIP_2025',
       };
 
+      // Use SetOptions(merge: true) so we don't delete other fields
       await _db.collection('users').doc(uid).set(userData, SetOptions(merge: true));
     } catch (e) {
       print("Error updating user profile: $e");
