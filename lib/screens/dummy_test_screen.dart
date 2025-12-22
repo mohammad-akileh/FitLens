@@ -1,6 +1,6 @@
 // lib/screens/dummy_test_screen.dart
 import 'package:flutter/material.dart';
-import 'home_design_screen.dart'; // We will create this next
+import 'home_screen.dart'; // We will create this next
 
 class DummyTestScreen extends StatefulWidget {
   const DummyTestScreen({super.key});
@@ -47,21 +47,21 @@ class _DummyTestScreenState extends State<DummyTestScreen> {
               ),
               onPressed: () {
                 // Navigate to the New Home Design with this data
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HomeDesignScreen(
-                      currentCals: double.parse(_calsController.text),
-                      targetCals: double.parse(_targetCalsController.text),
-                      currentProt: double.parse(_protController.text),
-                      targetProt: double.parse(_targetProtController.text),
-                      currentCarb: double.parse(_carbController.text),
-                      targetCarb: double.parse(_targetCarbController.text),
-                      currentFat: double.parse(_fatController.text),
-                      targetFat: double.parse(_targetFatController.text),
-                    ),
-                  ),
-                );
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(
+                //     builder: (context) => HomeDesignScreen(
+                //       currentCals: double.parse(_calsController.text),
+                //       targetCals: double.parse(_targetCalsController.text),
+                //       currentProt: double.parse(_protController.text),
+                //       targetProt: double.parse(_targetProtController.text),
+                //       currentCarb: double.parse(_carbController.text),
+                //       targetCarb: double.parse(_targetCarbController.text),
+                //       currentFat: double.parse(_fatController.text),
+                //       targetFat: double.parse(_targetFatController.text),
+                //     ),
+                //   ),
+                // );
               },
               child: Text("LAUNCH HOME DESIGN 🚀", style: TextStyle(color: Colors.white, fontSize: 18)),
             ),

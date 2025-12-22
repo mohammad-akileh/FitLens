@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         width: screenWidth,
         height: screenHeight,
         child: Lottie.asset(
-          'assets/Artboard 1(1).json', // ⚠️ Verify this name is correct!
+          'assets/Flow.json', // ⚠️ Verify this name is correct!
 
           controller: _controller,
 

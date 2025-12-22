@@ -71,7 +71,7 @@ class _AuthGateState extends State<AuthGate> {
               if (data != null && data.containsKey('onboarding_completed') && data['onboarding_completed'] == true) {
 
                 // --- Onboarding is complete, show the app ---
-                return DummyTestScreen();//should be HomeScreen
+                return HomeScreen();//should be HomeScreen
 
               } else {
 

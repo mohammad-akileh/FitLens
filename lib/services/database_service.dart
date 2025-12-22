@@ -43,6 +43,7 @@ class DatabaseService {
         'target_protein': dailyGoals?['protein'] ?? 150,
         'target_carbs': dailyGoals?['carb'] ?? 250, // Careful: key might be 'carb' or 'carbs' in your map
         'target_fat': dailyGoals?['fat'] ?? 65,
+        'target_water': dailyGoals?['water'] ?? 2500,
 
         // 🔐 THE MISSING KEY! ADD THIS LINE:
         'app_secret': 'FitLens_VIP_2025',
