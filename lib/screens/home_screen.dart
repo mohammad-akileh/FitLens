@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/intro_back.jpg'),
-                    opacity: .5,
+                    opacity: .4,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -203,22 +203,22 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Stack(
         children: [
           // Streak
-          Positioned(
-            top: 0, right: 0,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text("5 Day Streak", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                const SizedBox(height: 4),
-                Row(
-                  children: List.generate(5, (index) => Padding(
-                    padding: const EdgeInsets.only(left: 4.0),
-                    child: CircleAvatar(radius: 3, backgroundColor: progressGreen),
-                  )),
-                )
-              ],
-            ),
-          ),
+          // Positioned(
+          //   top: 0, right: 0,
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.end,
+          //     children: [
+          //       const Text("5 Day Streak", style: TextStyle(color: Colors.white70, fontSize: 12)),
+          //       const SizedBox(height: 4),
+          //       Row(
+          //         children: List.generate(5, (index) => Padding(
+          //           padding: const EdgeInsets.only(left: 4.0),
+          //           child: CircleAvatar(radius: 3, backgroundColor: progressGreen),
+          //         )),
+          //       )
+          //     ],
+          //   ),
+          // ),
 
           // The Center Content (Gauge + Text)
           Center(
@@ -312,79 +312,135 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // 💧 UPDATED WATER CARD (Now using Real DB Data)
+// 💧 SAMSUNG-STYLE WATER CARD
   Widget _buildWaterCard(double screenWidth, double currentWater, double targetWater, String uid) {
-    // Math for UI
     double percent = (currentWater / targetWater).clamp(0.0, 1.0);
-    String currentLiters = (currentWater / 1000).toStringAsFixed(1); // 1500 -> 1.5
-    String targetLiters = (targetWater / 1000).toStringAsFixed(1);
-    String percentText = "${(percent * 100).toInt()}%";
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: waterCardColor,
+        color: const Color(0xC32C2C2C), // Samsung uses dark cards, or use your 'cardDark' variable
+        // If you prefer your green theme: color: cardLight,
         borderRadius: BorderRadius.circular(25),
       ),
       child: Row(
         children: [
+          // --- LEFT SIDE: Text & Button ---
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Water", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                SizedBox(height: 5),
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
-                    children: [
-                      TextSpan(text: "$currentLiters "),
-                      TextSpan(text: "/ ${targetLiters}L", style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                    ],
-                  ),
+                // 1. Title
+                Row(
+                  children: [
+                    Icon(Icons.water_drop, color: Colors.blueAccent, size: 18),
+                    SizedBox(width: 5),
+                    Text("Water Intake", style: TextStyle(fontSize: 14, color: Colors.grey[400])),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text("Hydration Level: $percentText", style: const TextStyle(color: Colors.black54, fontSize: 12)),
+
+                // 2. ANIMATED NUMBER COUNTER (The "Stopwatch" effect)
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: currentWater),
+                  duration: const Duration(seconds: 1), // How long the counting takes
+                  builder: (context, value, child) {
+                    return RichText(
+                      text: TextSpan(
+                        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                        children: [
+                          TextSpan(text: "${value.toInt()} "), // The animated number
+                          TextSpan(
+                            text: "/ ${targetWater.toInt()} ml",
+                            style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                SizedBox(height: 20),
+
+                // 3. The "+ 250 ml" Button (Pill Shape)
+                InkWell(
+                  onTap: () => _addWater(uid, currentWater.toInt()),
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3E3E3E), // Dark button background
+                      // If green theme: color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.add, color: Colors.white, size: 18), // or primaryColor
+                        SizedBox(width: 5),
+                        Text(
+                          "250 ml",
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // or primaryColor
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
 
-          Row(
-            children: [
-              Column(
-                children: [
-                  // PLUS BUTTON
-                  InkWell(
-                    onTap: () => _addWater(uid, currentWater.toInt()), // 🔗 Connects to Logic
-                    child: _circleButton(Icons.add),
-                  ),
-                  SizedBox(height: 10),
-                  // MINUS BUTTON
-                  InkWell(
-                    onTap: () => _removeWater(uid, currentWater.toInt()),
-                    child: _circleButton(Icons.remove),
-                  ),
-                ],
-              ),
-              SizedBox(width: 15),
+          // --- RIGHT SIDE: The Visual Cup ---
+          SizedBox(width: 10),
+          _buildVisualCup(percent),
+        ],
+      ),
+    );
+  }
 
-              // 🌊 THE BLUE BAR
-              Container(
-                width: 50, height: 100,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25)),
-                alignment: Alignment.bottomCenter,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  width: 50,
-                  height: 100 * percent, // Dynamic Height
-                  decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(25)),
-                  alignment: Alignment.center,
-                  child: percent > 0.3
-                      ? Text(percentText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                      : null,
+  // Helper widget to draw the cup
+  Widget _buildVisualCup(double percent) {
+    return SizedBox(
+      width: 60,
+      height: 90,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          // 1. The Blue Liquid (Animated)
+          ClipPath(
+            clipper: CupClipper(),
+            child: Container(
+              color: Colors.grey[800], // Empty part color
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: percent, // This controls the fill level
+                widthFactor: 1.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                      color: Colors.blueAccent, // Water Color
+                      boxShadow: [
+                        BoxShadow(color: Colors.blueAccent.withOpacity(0.5), blurRadius: 10)
+                      ]
+                  ),
                 ),
-              )
-            ],
-          )
+              ),
+            ),
+          ),
+
+          // 2. The Glass Reflection (Optional, makes it look like glass)
+          ClipPath(
+            clipper: CupClipper(),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                gradient: LinearGradient(
+                  colors: [Colors.white.withOpacity(0.1), Colors.transparent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -480,4 +536,25 @@ class GaugeChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+// ✄ This cuts the container into a cup shape
+class CupClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    // Start at top left
+    path.moveTo(0, 0);
+    // Line to bottom left (slightly indented)
+    path.lineTo(size.width * 0.15, size.height);
+    // Line to bottom right (slightly indented)
+    path.lineTo(size.width * 0.85, size.height);
+    // Line to top right
+    path.lineTo(size.width, 0);
+    // Close back to top left
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
