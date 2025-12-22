@@ -34,8 +34,8 @@ class HomeDesignScreen extends StatelessWidget {
   final Color waterCardColor = const Color(0xFF9AAC95).withOpacity(0.6);
 
   // 4. Progress Bar Colors
-  final Color progressGreen = const Color(0xFF00E676).withOpacity(0.6); // Normal
-  final Color progressRed = const Color(0xFFFF5252).withOpacity(0.6);   // Over limit!
+  final Color progressGreen = const Color(0xFF00E676).withOpacity(1); // Normal
+  final Color progressRed = const Color(0xFFFF5252).withOpacity(1);   // Over limit!
   final Color trackColor = const Color(0xFF3E4E3C).withOpacity(0.6);    // The empty part of the pipe
 
   // =========================================================================

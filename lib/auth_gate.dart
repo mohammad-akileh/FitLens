@@ -76,7 +76,7 @@ class _AuthGateState extends State<AuthGate> {
               } else {
 
                 // --- Onboarding is NOT complete, show the 10 GUIs ---
-                return DummyTestScreen();//should be IntroScreen
+                return IntroScreen();//should be IntroScreen
 
               }
             },
