@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // 2. Colors (From your Design)
-  final Color cardDark = const Color(0xFF4A5F48);
+  final Color cardDark = const Color(0xB34A5F48);
   final Color cardLight = const Color(0xFF9AAC95).withOpacity(0.6);
   final Color waterCardColor = const Color(0xFF9AAC95).withOpacity(0.6);
   final Color progressGreen = const Color(0xFF00E676).withOpacity(1);

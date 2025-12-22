@@ -1,6 +1,7 @@
 // lib/auth_gate.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitlens/screens/dummy_test_screen.dart';
+import 'package:fitlens/screens/main_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/auth_service.dart';
@@ -71,7 +72,7 @@ class _AuthGateState extends State<AuthGate> {
               if (data != null && data.containsKey('onboarding_completed') && data['onboarding_completed'] == true) {
 
                 // --- Onboarding is complete, show the app ---
-                return HomeScreen();//should be HomeScreen
+                return MainScreen();//should be MainScreen
 
               } else {
 

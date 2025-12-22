@@ -296,6 +296,13 @@
             </list>
           </value>
         </entry>
+        <entry key="google_nav_bar">
+          <value>
+            <list>
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/google_nav_bar-5.0.7/lib" />
+            </list>
+          </value>
+        </entry>
         <entry key="google_sign_in">
           <value>
             <list>
@@ -779,6 +786,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_lints-4.0.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.32/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/google_identity_services_web-0.3.3+1/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/google_nav_bar-5.0.7/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/google_sign_in-6.3.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/google_sign_in_android-6.2.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/google_sign_in_ios-5.9.0/lib" />
