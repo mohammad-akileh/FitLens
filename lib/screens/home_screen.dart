@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'profile/profile_screen.dart'; // Adjust path if needed
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math' as math;
@@ -73,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // --- EXTRACT REAL DATA ---
         var data = snapshot.data!.data() as Map<String, dynamic>?;
-
+        String firstName = data?['first_name'] ?? "User";
+        String? photoUrl = data?['photo_url']; // Make sure you save this in DB!
         // Targets (Safety net: 2000 if null)
         double targetCals = (data?['target_calories'] ?? 2000).toDouble();
         double targetWater = (data?['target_water'] ?? 2500).toDouble();
@@ -115,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(data?['first_name'] ?? "FitLens User"),
+                      _buildHeader(firstName, photoUrl), // <- Pass real name and photo URL
                       SizedBox(height: 20),
 
                       // Main Gauge Card (Now using Real Data)
@@ -163,27 +165,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- WIDGETS ---
 
-  Widget _buildHeader(String name) {
+// In HomeScreen class
+  Widget _buildHeader(String name, String? photoUrl) { // <- Add photoUrl parameter
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            CircleAvatar(backgroundColor: Colors.grey, radius: 20, child: Icon(Icons.person, color: Colors.white)),
+            // Use a network image if available, otherwise a default icon
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                );
+              },
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.grey[300],
+                backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                child: photoUrl == null
+                    ? Icon(Icons.person, color: Colors.grey[600])
+                    : null,
+              ),
+            ),
             SizedBox(width: 10),
-            Text(name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Hello,", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                Text(name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ],
         ),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-          child: Row(
-            children: [
-              const Text("Today ", style: TextStyle(fontWeight: FontWeight.bold)),
-              const Icon(Icons.calendar_today, size: 16, color: Colors.green),
-            ],
-          ),
-        )
+        // ... (Rest of the header remains the same)
       ],
     );
   }
