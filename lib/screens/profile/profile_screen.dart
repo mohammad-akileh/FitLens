@@ -251,19 +251,17 @@ extension StringExtension on String {
 }
 
 // ---------------------------------------------------------
-// 🛠️ EDITABLE PERSONAL DETAILS SCREEN
 // ---------------------------------------------------------
-// ---------------------------------------------------------
-// 🛠️ EDITABLE PERSONAL DETAILS SCREEN (Fixed Constructor)
+// 🛠️ EDITABLE PERSONAL DETAILS SCREEN (Polished UI)
 // ---------------------------------------------------------
 class PersonalDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> data;
-  final String displayName; // ✅ Added this line to accept the name
+  final String displayName;
 
   const PersonalDetailsScreen({
     super.key,
     required this.data,
-    required this.displayName // ✅ Added this line to require it
+    required this.displayName
   });
 
   @override
@@ -271,21 +269,46 @@ class PersonalDetailsScreen extends StatefulWidget {
 }
 
 class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
-  // We need controllers to capture text input
   late TextEditingController _nameController;
   late TextEditingController _weightController;
   late TextEditingController _heightController;
+
+  // For the Dropdown
+  String? _selectedActivityLevel;
+  final List<String> _activityLevels = [
+    "Sedentary",
+    "Light",
+    "Moderate",
+    "Active",
+    "Very Active"
+  ];
+
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // ✅ FIX: Use the 'displayName' passed from the previous screen
-    // This ensures the box is pre-filled with "User" or their Google name
     _nameController = TextEditingController(text: widget.displayName);
 
-    _weightController = TextEditingController(text: (widget.data['weight'] ?? 0).toString());
-    _heightController = TextEditingController(text: (widget.data['height'] ?? 0).toString());
+    // Clean up initial numbers (remove .0 if it's an integer)
+    double w = (widget.data['weight'] ?? 0).toDouble();
+    double h = (widget.data['height'] ?? 0).toDouble();
+
+    // Logic: If it's 80.0, show "80". If 80.5, show "80.5"
+    _weightController = TextEditingController(
+        text: w % 1 == 0 ? w.toInt().toString() : w.toString()
+    );
+    _heightController = TextEditingController(
+        text: h % 1 == 0 ? h.toInt().toString() : h.toString()
+    );
+
+    // Set initial activity level (Default to Moderate if missing)
+    String currentLevel = widget.data['activity_level'] ?? "Moderate";
+    // Ensure the value from DB matches one of our list options (Capitalize if needed)
+    _selectedActivityLevel = _activityLevels.firstWhere(
+            (level) => level.toLowerCase() == currentLevel.toLowerCase(),
+        orElse: () => "Moderate"
+    );
   }
 
   @override
@@ -301,21 +324,30 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
 
+      // 🧹 CLEANING INPUTS
+      // 1. Handle "80." -> 80.0
+      // 2. Handle commas "80,5" -> 80.5 (common mistake)
+      String wText = _weightController.text.replaceAll(',', '.');
+      String hText = _heightController.text.replaceAll(',', '.');
+
+      double finalWeight = double.tryParse(wText) ?? 0.0;
+      double finalHeight = double.tryParse(hText) ?? 0.0;
+
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'first_name': _nameController.text.trim(),
-        'weight': double.tryParse(_weightController.text) ?? 0.0,
-        'height': double.tryParse(_heightController.text) ?? 0.0,
-        'app_secret': 'FitLens_VIP_2025', // 🔐 DB Password
+        'weight': finalWeight,
+        'height': finalHeight,
+        'activity_level': _selectedActivityLevel, // Save the dropdown value
+        'app_secret': 'FitLens_VIP_2025',
       });
 
-      // Also update the Auth Display Name for consistency
       await FirebaseAuth.instance.currentUser?.updateDisplayName(_nameController.text.trim());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Details Saved! ✅"), backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Go back to profile
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -342,7 +374,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         title: const Text("EDIT DETAILS", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
-          // SAVE BUTTON
           TextButton(
             onPressed: _isSaving ? null : _saveChanges,
             child: _isSaving
@@ -354,21 +385,26 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
           child: Column(
             children: [
+              // ✏️ EDITABLE FIELDS (Now look like inputs!)
               _buildEditableItem("First name", _nameController),
               _buildDivider(),
               _buildEditableItem("Current weight (kg)", _weightController, isNumber: true),
               _buildDivider(),
               _buildEditableItem("Height (cm)", _heightController, isNumber: true),
               _buildDivider(),
-              // Non-editable fields (Read only)
+
+              // 🔽 DROPDOWN FOR ACTIVITY
+              _buildDropdownItem("Activity Level"),
+              _buildDivider(),
+
+              // 🔒 READ ONLY FIELDS
               _buildReadOnlyItem("Age", "${widget.data['age']}"),
               _buildDivider(),
               _buildReadOnlyItem("Gender", widget.data['gender'] ?? '-'),
-              _buildDivider(),
-              _buildReadOnlyItem("Activity Level", widget.data['activity_level'] ?? '-'),
             ],
           ),
         ),
@@ -376,21 +412,78 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     );
   }
 
+  // 🎨 UPDATED: Looks like an input box now
   Widget _buildEditableItem(String label, TextEditingController controller, {bool isNumber = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          SizedBox(width: 10), // Spacer
+          // The Input Box
           SizedBox(
-            width: 150,
-            child: TextField(
-              controller: controller,
-              keyboardType: isNumber ? TextInputType.number : TextInputType.name,
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(border: InputBorder.none, hintText: "Enter value"),
-              style: TextStyle(fontSize: 16, color: Colors.grey[800]),
+            width: 160,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100], // 🎨 Light background
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey[300]!), // Subtle border
+              ),
+              child: TextField(
+                controller: controller,
+                keyboardType: isNumber ? TextInputType.numberWithOptions(decimal: true) : TextInputType.name,
+                textAlign: TextAlign.right,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: "Enter value",
+                  suffixIcon: Icon(Icons.edit, size: 14, color: Colors.grey[400]), // ✏️ Tiny Pencil
+                  suffixIconConstraints: BoxConstraints(maxHeight: 20, minWidth: 25),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                ),
+                style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔽 NEW: Dropdown for Activity
+  Widget _buildDropdownItem(String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedActivityLevel,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.green),
+                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 16),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedActivityLevel = newValue!;
+                  });
+                },
+                items: _activityLevels.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ],
@@ -404,8 +497,8 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(value, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)), // Grey title for read-only
+          Text(value, style: TextStyle(fontSize: 16, color: Colors.grey[600])), // Grey text for read-only
         ],
       ),
     );
