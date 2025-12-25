@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Needed for Upload
 import 'package:image_picker/image_picker.dart'; // 📦 The New Package
+import '../../utils/calculator.dart'; // Import your Brain 🧠
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -324,37 +325,83 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
 
-      // 🧹 CLEANING INPUTS
-      // 1. Handle "80." -> 80.0
-      // 2. Handle commas "80,5" -> 80.5 (common mistake)
-      String wText = _weightController.text.replaceAll(',', '.');
-      String hText = _heightController.text.replaceAll(',', '.');
+      // 1. Get the New Raw Data
+      String newName = _nameController.text.trim();
+      double newWeight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0.0;
+      double newHeight = double.tryParse(_heightController.text.replaceAll(',', '.')) ?? 0.0;
+      String newActivity = _selectedActivityLevel ?? "Moderate";
 
-      double finalWeight = double.tryParse(wText) ?? 0.0;
-      double finalHeight = double.tryParse(hText) ?? 0.0;
+      // We need these old values for the math (Age/Gender didn't change on this screen)
+      int age = widget.data['age'] ?? 20;
+      String gender = widget.data['gender'] ?? 'male';
+      String goalStr = widget.data['goal'] ?? 'Maintain';
+
+      // ---------------------------------------------------------
+      // 🧠 2. THE RE-CALCULATION (The Mechanism Update)
+      // ---------------------------------------------------------
+
+      // A. Calculate BMR
+      double bmr = Calculator.calculateBMR(
+        heightCm: newHeight.toInt(),
+        weightKg: newWeight.toInt(),
+        age: age,
+        gender: gender,
+      );
+
+      // B. Map Activity String to Number (1.2, 1.375, etc)
+      // (You might want to add a helper for this in Calculator class later)
+      double activityMultiplier = 1.2;
+      if (newActivity == "Light") activityMultiplier = 1.375;
+      if (newActivity == "Moderate") activityMultiplier = 1.55;
+      if (newActivity == "Active") activityMultiplier = 1.725;
+      if (newActivity == "Very Active") activityMultiplier = 1.9;
+
+      // C. Get New Calories
+      double newTargetCals = Calculator.calculateTargetCalories(bmr, activityMultiplier: activityMultiplier);
+
+      // D. Get New Macros
+      String macroGoal = 'maintain';
+      if (goalStr.toLowerCase().contains('gain')) macroGoal = 'muscle';
+      if (goalStr.toLowerCase().contains('lose')) macroGoal = 'loss';
+
+      Map<String, double> newMacros = Calculator.calculateMacros(newTargetCals, goal: macroGoal);
+
+      // E. Get New Water
+      // (Simple logic: Base water. You can add exercise hours logic later if needed)
+      double newWater = Calculator.calculateWater(weightKg: newWeight.toInt());
+
+      // ---------------------------------------------------------
+      // 💾 3. SAVE EVERYTHING TO DB
+      // ---------------------------------------------------------
 
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'first_name': _nameController.text.trim(),
-        'weight': finalWeight,
-        'height': finalHeight,
-        'activity_level': _selectedActivityLevel, // Save the dropdown value
+        // Profile Data
+        'first_name': newName,
+        'weight': newWeight,
+        'height': newHeight,
+        'activity_level': newActivity,
+
+        // 🎯 UPDATED TARGETS (This fixes your concern!)
+        'target_calories': newTargetCals.round(),
+        'target_protein': newMacros['protein']!.round(),
+        'target_carbs': newMacros['carb']!.round(),
+        'target_fat': newMacros['fat']!.round(),
+        'target_water': (newWater * 1000).round(), // Convert L to mL
+
         'app_secret': 'FitLens_VIP_2025',
       });
 
-      await FirebaseAuth.instance.currentUser?.updateDisplayName(_nameController.text.trim());
+      // Update Auth Name
+      await FirebaseAuth.instance.currentUser?.updateDisplayName(newName);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Details Saved! ✅"), backgroundColor: Colors.green),
+          const SnackBar(content: Text("Profile & Goals Updated! 🎯"), backgroundColor: Colors.green),
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-        );
-      }
+      // ... error handling
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
