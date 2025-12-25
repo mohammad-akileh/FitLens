@@ -34,22 +34,25 @@ class Calculator {
   // Standard (Maintenance): 50% Carb, 30% Prot, 20% Fat
   // Muscle (High Protein): 40% Carb, 40% Prot, 20% Fat
   // Weight Loss (Lower Carb): 40% Carb, 35% Prot, 25% Fat
-  static Map<String, double> calculateMacros(double dailyCalories, {String goal = 'maintain'}) {
+// REPLACE the old calculateMacros with this:
+  static Map<String, double> calculateMacros(double dailyCalories, {String goal = 'maintain', String dietType = 'standard'}) {
     double carbPct, protPct, fatPct;
 
-    if (goal == 'muscle') {
-      carbPct = 0.40; protPct = 0.40; fatPct = 0.20;
-    } else if (goal == 'loss') {
-      carbPct = 0.40; protPct = 0.35; fatPct = 0.25;
+    if (dietType.toLowerCase() == 'keto') {
+      carbPct = 0.05; protPct = 0.25; fatPct = 0.70;
+    } else if (dietType.toLowerCase() == 'high protein') {
+      carbPct = 0.35; protPct = 0.45; fatPct = 0.20;
+    } else if (dietType.toLowerCase() == 'vegan') {
+      carbPct = 0.55; protPct = 0.20; fatPct = 0.25;
     } else {
-      // Default / Maintain
+      // Standard
       carbPct = 0.50; protPct = 0.30; fatPct = 0.20;
     }
 
     return {
-      'protein': (dailyCalories * protPct) / 4, // 1g Prot = 4 kcal
-      'carb': (dailyCalories * carbPct) / 4,    // 1g Carb = 4 kcal
-      'fat': (dailyCalories * fatPct) / 9,      // 1g Fat = 9 kcal
+      'protein': (dailyCalories * protPct) / 4,
+      'carb': (dailyCalories * carbPct) / 4,
+      'fat': (dailyCalories * fatPct) / 9,
     };
   }
 

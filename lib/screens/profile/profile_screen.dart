@@ -5,7 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart'; // Needed for Upload
 import 'package:image_picker/image_picker.dart'; // 📦 The New Package
 import '../../utils/calculator.dart'; // Import your Brain 🧠
-
+import 'dietary_screen.dart'; // Add this
+import 'habits_screen.dart'; // Add this
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -74,6 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final User? user = _auth.currentUser;
     if (user == null) return const Scaffold(body: Center(child: Text("Please login")));
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
@@ -199,13 +201,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }),
                       _buildDivider(),
                       _buildMenuItem(Icons.restaurant_menu, "Dietary needs & preferences", () {
-                        // Placeholder for now
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coming in Phase 2!")));
+                        // This opens the new Dietary Screen!
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => DietaryScreen(data: data)));
                       }),
                       _buildDivider(),
                       _buildMenuItem(Icons.water_drop, "Set your habits", () {
-                        // Placeholder for now
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Coming in Phase 2!")));
+                        // This opens the new Habits Screen!
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => HabitsScreen(data: data)));
                       }),
                     ],
                   ),
