@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/tabs/home_tab.dart';
 import 'screens/onboarding/intro_screen.dart';
 import 'screens/onboarding/onboarding_gender_screen.dart';
 

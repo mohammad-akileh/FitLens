@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart'; // 📦 The Package
-import 'home_screen.dart'; // Your actual Home Screen
-// import 'history_screen.dart'; // (Uncomment when you have these)
-// import 'profile_screen.dart'; // (Uncomment when you have these)
+import 'tabs/home_tab.dart'; // Your actual Home Screen
+import 'tabs/history_tab.dart'; // (Uncomment when you have these)
+import 'tabs/profile_tab.dart'; // (Uncomment when you have these)
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

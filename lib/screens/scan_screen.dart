@@ -6,7 +6,8 @@ import '../services/api_service.dart';
 import 'meal_details_screen.dart';
 
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key});
+  final String mealType;
+  const ScanScreen({super.key,required this.mealType});
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -71,7 +72,7 @@ class _ScanScreenState extends State<ScanScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("New Scan", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: Text("Scan ${widget.mealType}", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(

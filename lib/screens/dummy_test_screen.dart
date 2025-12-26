@@ -1,6 +1,6 @@
 // lib/screens/dummy_test_screen.dart
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // We will create this next
+import 'tabs/home_tab.dart'; // We will create this next
 
 class DummyTestScreen extends StatefulWidget {
   const DummyTestScreen({super.key});
