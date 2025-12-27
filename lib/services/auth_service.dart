@@ -28,6 +28,7 @@ class AuthService {
           'name': name,
           'email': email,
           'created_at': FieldValue.serverTimestamp(),
+          'app_secret': 'FitLens_VIP_2025', // 🔑 ADD THIS LINE!
         });
 
         // 3. Send verification email
@@ -94,6 +95,7 @@ class AuthService {
             'name': user.displayName ?? 'Google User', // Use Google name
             'email': user.email,
             'created_at': FieldValue.serverTimestamp(),
+            'app_secret': 'FitLens_VIP_2025', // 🔑 ADD THIS LINE!
           });
         }
       }

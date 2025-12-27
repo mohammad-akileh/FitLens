@@ -63,7 +63,7 @@ class _AuthGateState extends State<AuthGate> {
                 // This user's document hasn't been created yet
                 // (This can happen if Google Sign In is slow)
                 // We'll treat them as new.
-                return OnboardingGenderScreen();
+                return IntroScreen();
               }
 
               final data = firestoreSnapshot.data!.data() as Map<String, dynamic>?;

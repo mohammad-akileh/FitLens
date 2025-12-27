@@ -14,20 +14,24 @@ class StorageService {
   Future<String> uploadMealImage(File imageFile) async {
     try {
       print('Uploading file size: ${await imageFile.length()} bytes');
-
       final String userId = _auth.currentUser!.uid;
       final String fileName = DateTime.now().millisecondsSinceEpoch.toString();
       final String path = 'meals/$userId/$fileName.jpg';
       final Reference storageRef = _storage.ref().child(path);
 
-      // Upload the file (it's already compressed!)
-      final UploadTask uploadTask = storageRef.putFile(imageFile);
+      // 🔐 1. CREATE THE PASSWORD METADATA
+      final SettableMetadata metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {'app_secret': 'FitLens_VIP_2025'},
+      );
+
+      // 🔐 2. UPLOAD WITH METADATA
+      final UploadTask uploadTask = storageRef.putFile(imageFile, metadata);
 
       final TaskSnapshot snapshot = await uploadTask;
       final String downloadUrl = await snapshot.ref.getDownloadURL();
 
       return downloadUrl;
-
     } catch (e) {
       print("Error uploading image: $e");
       throw Exception("Image upload failed.");

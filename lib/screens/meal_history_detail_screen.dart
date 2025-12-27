@@ -1,4 +1,5 @@
 // lib/screens/meal_history_detail_screen.dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -346,22 +347,46 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         ),
 
         // 3. THE GLASS LOADER OVERLAY 🕵️‍♂️
+        // 3. THE BEAUTIFUL GLASS LOADER ✨
         if (_isLoading)
-          Container(
-            color: Colors.black.withOpacity(0.5), // Semi-transparent black
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: mainTextColor),
-                    const SizedBox(height: 15),
-                    const Text("AI is thinking... 🧠", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ],
+          Positioned.fill( // Covers the whole screen
+            child: Stack(
+              children: [
+                // A. Blur Effect
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.3), // Dark tint
+                  ),
                 ),
-              ),
+                // B. The Card
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: Color(0xFF5F7E5B)), // Main Green
+                        const SizedBox(height: 20),
+                        const Text(
+                          "Consulting AI Chef... 👨‍🍳",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          "Analyzing nutrition data",
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
       ],

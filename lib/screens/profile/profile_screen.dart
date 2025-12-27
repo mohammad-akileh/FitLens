@@ -334,11 +334,13 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     double w = (widget.data['weight'] ?? 0).toDouble();
     double h = (widget.data['height'] ?? 0).toDouble();
 
+    // OLD: text: w % 1 == 0 ? w.toInt().toString() : w.toString()
+    // NEW: Force 1 decimal place if it's not a whole number
     _weightController = TextEditingController(
-        text: w % 1 == 0 ? w.toInt().toString() : w.toString()
+        text: w % 1 == 0 ? w.toInt().toString() : w.toStringAsFixed(1)
     );
     _heightController = TextEditingController(
-        text: h % 1 == 0 ? h.toInt().toString() : h.toString()
+        text: h % 1 == 0 ? h.toInt().toString() : h.toStringAsFixed(1)
     );
 
     String currentLevel = widget.data['activity_level'] ?? "Moderate";

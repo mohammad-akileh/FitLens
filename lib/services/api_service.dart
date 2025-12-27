@@ -73,12 +73,21 @@ class ApiService {
   }
 
   // 🧹 Helper to find numbers in messy JSON
+  // 🧹 Robust Helper to find numbers
   num _getNum(Map<String, dynamic> data, List<String> keys) {
     for (String key in keys) {
       if (data.containsKey(key) && data[key] != null) {
-        return data[key] is num ? data[key] : (num.tryParse(data[key].toString()) ?? 0);
+        var value = data[key];
+        // Handle String numbers (e.g., "15.5")
+        if (value is String) {
+          return num.tryParse(value) ?? 0;
+        }
+        // Handle actual numbers
+        if (value is num) {
+          return value;
+        }
       }
     }
-    return 0; // If nothing found
+    return 0;
   }
 }

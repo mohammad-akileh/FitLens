@@ -79,7 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // --- EXTRACT REAL DATA ---
         var data = snapshot.data!.data() as Map<String, dynamic>?;
-        String firstName = data?['first_name'] ?? "User";
+        // OLD: String firstName = data?['first_name'] ?? "User";
+        // NEW: Check both keys!
+        String firstName = data?['name'] ?? data?['first_name'] ?? "User";
         String? photoUrl = data?['photo_url']; // Make sure you save this in DB!
         // Targets (Safety net: 2000 if null)
         double targetCals = (data?['target_calories'] ?? 2000).toDouble();
