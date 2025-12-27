@@ -1,12 +1,14 @@
-import 'dart:io'; // Needed for File
+// lib/screens/profile/profile_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // Needed for Upload
-import 'package:image_picker/image_picker.dart'; // 📦 The New Package
-import '../../utils/calculator.dart'; // Import your Brain 🧠
-import 'dietary_screen.dart'; // Add this
-import 'habits_screen.dart'; // Add this
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../utils/calculator.dart';
+import 'dietary_screen.dart';
+import 'habits_screen.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -18,9 +20,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-  bool _isUploading = false; // To show spinner when uploading
+  bool _isUploading = false;
 
-// 📸 FUNCTION: Pick and Upload Image (Now with PASSWORD 🔐)
+  @override
+  void initState() {
+    super.initState();
+    // 🚑 SILENT AUTO-REPAIR: Check DB on load
+    _ensureDatabaseExists();
+  }
+
+  // 🕵️‍♂️ The Silent Repair Doctor
+  Future<void> _ensureDatabaseExists() async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    final docRef = _db.collection('users').doc(user.uid);
+    final docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      print("🚑 DB missing. Auto-creating for ${user.email}...");
+      await docRef.set({
+        'email': user.email,
+        'first_name': user.displayName ?? 'Besti',
+        'created_at': FieldValue.serverTimestamp(),
+        // Default Safety Values so app doesn't crash
+        'target_calories': 2000,
+        'target_protein': 150,
+        'target_carbs': 250,
+        'target_fat': 65,
+        'target_water': 2500,
+        'app_secret': 'FitLens_VIP_2025',
+      }, SetOptions(merge: true));
+      // Force refresh UI
+      if (mounted) setState(() {});
+    }
+  }
+
+  // 📸 FUNCTION: Pick and Upload Image
   Future<void> _uploadProfilePicture() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -36,25 +72,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // 1. Create Reference
       Reference ref = _storage.ref().child('profile_pics/$uid.jpg');
 
-      // 2. 🔐 ADD THE PASSWORD METADATA 🔐
-      // This is the key to open the Storage door!
+      // 2. 🔐 ADD THE PASSWORD METADATA
       SettableMetadata metadata = SettableMetadata(
+          contentType: 'image/jpeg', // ℹ️ Helps browser/console view it correctly
           customMetadata: {'app_secret': 'FitLens_VIP_2025'}
       );
 
       // 3. Upload with Metadata
       UploadTask task = ref.putFile(file, metadata);
 
+      // Wait for upload...
       TaskSnapshot snapshot = await task;
       String downloadUrl = await snapshot.ref.getDownloadURL();
 
       // 4. Save URL to Firestore
       await _db.collection('users').doc(uid).update({
         'photo_url': downloadUrl,
-        'app_secret': 'FitLens_VIP_2025', // DB Password
+        'app_secret': 'FitLens_VIP_2025',
       });
 
-      // 5. Update Local Auth (Helps UI update faster)
+      // 5. Update Local Auth
       await _auth.currentUser?.updatePhotoURL(downloadUrl);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -62,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
     } catch (e) {
-      print("Upload Error: $e"); // Check console if it fails
+      print("Upload Error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
@@ -75,7 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final User? user = _auth.currentUser;
     if (user == null) return const Scaffold(body: Center(child: Text("Please login")));
-
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
@@ -93,20 +129,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         stream: _db.collection('users').doc(user.uid).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const Center(child: Text("Something went wrong"));
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+
+          // Show loading only if we have NO data yet
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
           // Data Extraction
           final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-          // 1. NAME FIX: Check DB first, then Google Auth, then fallback
+          // 1. NAME FIX
           String name = data['first_name'] ?? user.displayName ?? 'User';
 
           final int age = data['age'] ?? 0;
           final String? photoUrl = data['photo_url'];
 
-          // 2. NUMBER FIX: Round the weight
+          // 2. NUMBER FIX
           final double weight = (data['weight'] ?? 0.0).toDouble();
-          final String displayWeight = weight.toStringAsFixed(1); // "69.7699" -> "69.8"
+          final String displayWeight = weight.toStringAsFixed(1);
 
           final String weightUnit = data['weight_unit'] ?? 'kg';
           final String goal = data['goal'] ?? 'Maintain';
@@ -133,10 +171,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           CircleAvatar(
                             radius: 40,
                             backgroundColor: Colors.grey[200],
-                            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                            // Prioritize Firestore URL, then Auth URL, then Null
+                            backgroundImage: photoUrl != null
+                                ? NetworkImage(photoUrl)
+                                : (user.photoURL != null ? NetworkImage(user.photoURL!) : null),
                             child: _isUploading
                                 ? const CircularProgressIndicator()
-                                : (photoUrl == null ? Icon(Icons.person, size: 40, color: Colors.grey[400]) : null),
+                                : (photoUrl == null && user.photoURL == null
+                                ? Icon(Icons.person, size: 40, color: Colors.grey[400])
+                                : null),
                           ),
 
                           // THE GREEN PLUS BUTTON 🟢
@@ -144,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             bottom: 0,
                             right: 0,
                             child: InkWell(
-                              onTap: _isUploading ? null : _uploadProfilePicture, // 🔗 Connect the function!
+                              onTap: _isUploading ? null : _uploadProfilePicture,
                               child: Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
@@ -170,7 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // --- Stats Row (Fixed Decimals) ---
+                // --- Stats Row ---
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(
@@ -180,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStatItem("Current weight", "$displayWeight $weightUnit"), // Using fixed variable
+                      _buildStatItem("Current weight", "$displayWeight $weightUnit"),
                       _buildStatItem("Goal", goal.replaceAll('_', ' ').capitalize()),
                     ],
                   ),
@@ -196,17 +239,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     children: [
                       _buildMenuItem(Icons.person, "Personal details", () {
-                        // Pass the Name/Photo down to details so it matches
                         Navigator.push(context, MaterialPageRoute(builder: (context) => PersonalDetailsScreen(data: data, displayName: name)));
                       }),
                       _buildDivider(),
                       _buildMenuItem(Icons.restaurant_menu, "Dietary needs & preferences", () {
-                        // This opens the new Dietary Screen!
                         Navigator.push(context, MaterialPageRoute(builder: (context) => DietaryScreen(data: data)));
                       }),
                       _buildDivider(),
                       _buildMenuItem(Icons.water_drop, "Set your habits", () {
-                        // This opens the new Habits Screen!
                         Navigator.push(context, MaterialPageRoute(builder: (context) => HabitsScreen(data: data)));
                       }),
                     ],
@@ -220,7 +260,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ... (Helper widgets _buildStatItem, _buildMenuItem, _buildDivider remain same)
   Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
@@ -254,8 +293,7 @@ extension StringExtension on String {
 }
 
 // ---------------------------------------------------------
-// ---------------------------------------------------------
-// 🛠️ EDITABLE PERSONAL DETAILS SCREEN (Polished UI)
+// 🛠️ EDITABLE PERSONAL DETAILS SCREEN (Keep as is)
 // ---------------------------------------------------------
 class PersonalDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -293,11 +331,9 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.displayName);
 
-    // Clean up initial numbers (remove .0 if it's an integer)
     double w = (widget.data['weight'] ?? 0).toDouble();
     double h = (widget.data['height'] ?? 0).toDouble();
 
-    // Logic: If it's 80.0, show "80". If 80.5, show "80.5"
     _weightController = TextEditingController(
         text: w % 1 == 0 ? w.toInt().toString() : w.toString()
     );
@@ -305,9 +341,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         text: h % 1 == 0 ? h.toInt().toString() : h.toString()
     );
 
-    // Set initial activity level (Default to Moderate if missing)
     String currentLevel = widget.data['activity_level'] ?? "Moderate";
-    // Ensure the value from DB matches one of our list options (Capitalize if needed)
     _selectedActivityLevel = _activityLevels.firstWhere(
             (level) => level.toLowerCase() == currentLevel.toLowerCase(),
         orElse: () => "Moderate"
@@ -327,20 +361,14 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
 
-      // 1. Get the New Raw Data
       String newName = _nameController.text.trim();
       double newWeight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0.0;
       double newHeight = double.tryParse(_heightController.text.replaceAll(',', '.')) ?? 0.0;
       String newActivity = _selectedActivityLevel ?? "Moderate";
 
-      // We need these old values for the math (Age/Gender didn't change on this screen)
       int age = widget.data['age'] ?? 20;
       String gender = widget.data['gender'] ?? 'male';
       String goalStr = widget.data['goal'] ?? 'Maintain';
-
-      // ---------------------------------------------------------
-      // 🧠 2. THE RE-CALCULATION (The Mechanism Update)
-      // ---------------------------------------------------------
 
       // A. Calculate BMR
       double bmr = Calculator.calculateBMR(
@@ -350,8 +378,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         gender: gender,
       );
 
-      // B. Map Activity String to Number (1.2, 1.375, etc)
-      // (You might want to add a helper for this in Calculator class later)
+      // B. Map Activity
       double activityMultiplier = 1.2;
       if (newActivity == "Light") activityMultiplier = 1.375;
       if (newActivity == "Moderate") activityMultiplier = 1.55;
@@ -369,31 +396,21 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       Map<String, double> newMacros = Calculator.calculateMacros(newTargetCals, goal: macroGoal);
 
       // E. Get New Water
-      // (Simple logic: Base water. You can add exercise hours logic later if needed)
       double newWater = Calculator.calculateWater(weightKg: newWeight.toInt());
 
-      // ---------------------------------------------------------
-      // 💾 3. SAVE EVERYTHING TO DB
-      // ---------------------------------------------------------
-
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        // Profile Data
         'first_name': newName,
         'weight': newWeight,
         'height': newHeight,
         'activity_level': newActivity,
-
-        // 🎯 UPDATED TARGETS (This fixes your concern!)
         'target_calories': newTargetCals.round(),
         'target_protein': newMacros['protein']!.round(),
         'target_carbs': newMacros['carb']!.round(),
         'target_fat': newMacros['fat']!.round(),
-        'target_water': (newWater * 1000).round(), // Convert L to mL
-
+        'target_water': (newWater * 1000).round(),
         'app_secret': 'FitLens_VIP_2025',
       });
 
-      // Update Auth Name
       await FirebaseAuth.instance.currentUser?.updateDisplayName(newName);
 
       if (mounted) {
@@ -403,7 +420,9 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      // ... error handling
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -438,19 +457,14 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
           child: Column(
             children: [
-              // ✏️ EDITABLE FIELDS (Now look like inputs!)
               _buildEditableItem("First name", _nameController),
               _buildDivider(),
               _buildEditableItem("Current weight (kg)", _weightController, isNumber: true),
               _buildDivider(),
               _buildEditableItem("Height (cm)", _heightController, isNumber: true),
               _buildDivider(),
-
-              // 🔽 DROPDOWN FOR ACTIVITY
               _buildDropdownItem("Activity Level"),
               _buildDivider(),
-
-              // 🔒 READ ONLY FIELDS
               _buildReadOnlyItem("Age", "${widget.data['age']}"),
               _buildDivider(),
               _buildReadOnlyItem("Gender", widget.data['gender'] ?? '-'),
@@ -461,7 +475,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     );
   }
 
-  // 🎨 UPDATED: Looks like an input box now
   Widget _buildEditableItem(String label, TextEditingController controller, {bool isNumber = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -469,16 +482,15 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          SizedBox(width: 10), // Spacer
-          // The Input Box
+          SizedBox(width: 10),
           SizedBox(
             width: 160,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[100], // 🎨 Light background
+                color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey[300]!), // Subtle border
+                border: Border.all(color: Colors.grey[300]!),
               ),
               child: TextField(
                 controller: controller,
@@ -487,7 +499,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   hintText: "Enter value",
-                  suffixIcon: Icon(Icons.edit, size: 14, color: Colors.grey[400]), // ✏️ Tiny Pencil
+                  suffixIcon: Icon(Icons.edit, size: 14, color: Colors.grey[400]),
                   suffixIconConstraints: BoxConstraints(maxHeight: 20, minWidth: 25),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 10),
@@ -501,7 +513,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     );
   }
 
-  // 🔽 NEW: Dropdown for Activity
   Widget _buildDropdownItem(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -546,8 +557,8 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)), // Grey title for read-only
-          Text(value, style: TextStyle(fontSize: 16, color: Colors.grey[600])), // Grey text for read-only
+          Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text(value, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
         ],
       ),
     );

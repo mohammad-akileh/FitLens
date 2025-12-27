@@ -276,73 +276,95 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       imageWidget = const Icon(Icons.image, size: 50, color: Colors.grey);
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Meal Breakdown", style: TextStyle(color: Colors.black)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: Colors.black)),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: mainTextColor))
-          : Column(
-        children: [
-          // Image Preview
-          Container(
-            height: 200, width: double.infinity, color: Colors.grey[200],
-            child: imageWidget,
+    return Stack( // 👈 1. USE STACK
+      children: [
+        // 2. THE MAIN CONTENT (Your existing Scaffold)
+        Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+              title: const Text("Meal Breakdown", style: TextStyle(color: Colors.black)),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.black)
           ),
+          body: Column(
+            children: [
+              // Image
+              Container(height: 200, width: double.infinity, color: Colors.grey[200], child: imageWidget),
 
-          // List of Items
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _foodItems.length + 1, // +1 for the Add Button
-              itemBuilder: (context, index) {
-                // Add Button (Last Item)
-                if (index == _foodItems.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 10, bottom: 30),
-                    child: TextButton.icon(
-                      onPressed: _addMissingItem,
-                      icon: Icon(Icons.add_circle, color: mainTextColor, size: 28),
-                      label: Text("Add Missing Item", style: TextStyle(color: mainTextColor, fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                  );
-                }
+              // List
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _foodItems.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == _foodItems.length) {
+                      // Add Button
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 10, bottom: 30),
+                        child: TextButton.icon(
+                          onPressed: _addMissingItem,
+                          icon: Icon(Icons.add_circle, color: mainTextColor, size: 28),
+                          label: Text("Add Missing Item", style: TextStyle(color: mainTextColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      );
+                    }
+                    // Food Card (Existing logic)
+                    final item = _foodItems[index];
+                    final key = Key(item['uuid'] ?? "key_$index");
+                    return Dismissible(
+                      key: key,
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        margin: const EdgeInsets.only(bottom: 15),
+                        padding: const EdgeInsets.only(right: 20),
+                        decoration: BoxDecoration(color: Colors.red[100], borderRadius: BorderRadius.circular(20)),
+                        alignment: Alignment.centerRight,
+                        child: const Icon(Icons.delete, color: Colors.red, size: 30),
+                      ),
+                      onDismissed: (direction) => _deleteItem(index),
+                      child: _buildFoodCard(item, index),
+                    );
+                  },
+                ),
+              ),
 
-                // Food Card
-                final item = _foodItems[index];
-                // USE THE UUID AS THE KEY!
-                final key = Key(item['uuid'] ?? "key_$index");
-
-                return Dismissible(
-                  key: key,
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    margin: const EdgeInsets.only(bottom: 15),
-                    padding: const EdgeInsets.only(right: 20),
-                    decoration: BoxDecoration(color: Colors.red[100], borderRadius: BorderRadius.circular(20)),
-                    alignment: Alignment.centerRight,
-                    child: const Icon(Icons.delete, color: Colors.red, size: 30),
+              // Save Button
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: SizedBox(
+                  width: double.infinity, height: 55,
+                  child: ElevatedButton(
+                    onPressed: _saveMeal,
+                    style: ElevatedButton.styleFrom(backgroundColor: mainTextColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                    child: const Text("Save Meal", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                  onDismissed: (direction) => _deleteItem(index),
-                  child: _buildFoodCard(item, index),
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
+        ),
 
-          // Save Button
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: SizedBox(
-              width: double.infinity, height: 55,
-              child: ElevatedButton(
-                onPressed: _saveMeal,
-                style: ElevatedButton.styleFrom(backgroundColor: mainTextColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                child: const Text("Save Meal", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+        // 3. THE GLASS LOADER OVERLAY 🕵️‍♂️
+        if (_isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.5), // Semi-transparent black
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: mainTextColor),
+                    const SizedBox(height: 15),
+                    const Text("AI is thinking... 🧠", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 

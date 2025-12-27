@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart'; // 📦 The Package
 import 'tabs/home_tab.dart'; // Your actual Home Screen
@@ -19,7 +21,33 @@ class _MainScreenState extends State<MainScreen> {
   final Color iconColor = Colors.grey; // Unselected Icon
   final Color backgroundColor = const Color(0xFFF5F7F2); // Bar Background
   // ---------------------------------------------------------------------------
+// inside _MainScreenState class...
 
+  @override
+  void initState() {
+    super.initState();
+    _repairUserDatabase(); // 🚑 Call the Doctor!
+  }
+
+  Future<void> _repairUserDatabase() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists) {
+      print("🚑 REPAIRING USER DATABASE...");
+      // Create the missing document
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'email': user.email,
+        'first_name': user.displayName ?? 'Besti',
+        'created_at': FieldValue.serverTimestamp(),
+        'target_calories': 2000, // Default safety values
+        'app_secret': 'FitLens_VIP_2025',
+      }, SetOptions(merge: true));
+      print("✅ User Database Repaired!");
+    }
+  }
   int _selectedIndex = 0;
 
   // 📄 THE SCREENS
