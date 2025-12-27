@@ -1,115 +1,148 @@
-// lib/screens/tabs/history_tab.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-import '../meal_history_detail_screen.dart';
-
+import 'package:intl/intl.dart'; // Run 'flutter pub add intl' if you get an error here
+import '../../screens/meal_history_detail_screen.dart'; // Import the detail screen
 class HistoryTab extends StatelessWidget {
   const HistoryTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const Center(child: Text("Please login"));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5F0), // Cream
+      backgroundColor: const Color(0xFFF5F7F2), // Matches your app theme
       appBar: AppBar(
-        title: Text("Meal History", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text("Meal History", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
+        // 📡 Listen to meals, ordered by newest first
         stream: FirebaseFirestore.instance
             .collection('users')
-            .doc(uid)
+            .doc(user.uid)
             .collection('meals')
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(child: Text("No meals scanned yet."));
+            return const Center(child: Text("No meals logged yet 🍽️"));
           }
 
-          final meals = snapshot.data!.docs;
-
-          // inside history_tab.dart
-// Don't forget to import: import '../meal_history_detail_screen.dart';
+          var docs = snapshot.data!.docs;
 
           return ListView.builder(
-            padding: EdgeInsets.all(20),
-            itemCount: meals.length + 1,
+            padding: const EdgeInsets.all(15),
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              if (index == meals.length) return SizedBox(height: 100);
-
-              final meal = meals[index].data() as Map<String, dynamic>;
-              double cals = (meal['total_calories'] ?? 0).toDouble();
-
-              // --- FORMAT THE DATE ---
-              Timestamp? ts = meal['timestamp'];
-              String dateString = "Unknown Date";
-              if (ts != null) {
-                DateTime date = ts.toDate();
-                // Format: "12/9 - 10:30"
-                dateString = "${date.month}/${date.day} • ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
-              }
-              // -----------------------
-
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MealHistoryDetailScreen(mealData: meal),
-                    ),
-                  );
-                },
-                child: Container(
-                  margin: EdgeInsets.only(bottom: 15),
-                  padding: EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
-                  ),
-                  child: Row(
-                    children: [
-                      // Thumbnail
-                      Container(
-                        height: 50, width: 50,
-                        decoration: BoxDecoration(
-                          color: Color(0xFF5F7E5B).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(15),
-                          image: (meal['image_url'] != null && meal['image_url'] != "")
-                              ? DecorationImage(image: NetworkImage(meal['image_url']), fit: BoxFit.cover)
-                              : null,
-                        ),
-                        child: (meal['image_url'] == null || meal['image_url'] == "")
-                            ? Icon(Icons.fastfood, color: Color(0xFF5F7E5B))
-                            : null,
-                      ),
-                      SizedBox(width: 15),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // --- SHOW DATE HERE ---
-                          Text(dateString, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text("${cals.toStringAsFixed(0)} kcal", style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                      Spacer(),
-                      Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                    ],
-                  ),
-                ),
-              );
+              var data = docs[index].data() as Map<String, dynamic>;
+              return _buildHistoryCard(context, data);
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(BuildContext context, Map<String, dynamic> data) {
+    // Extract Data
+    String imageUrl = data['image_url'] ?? "";
+    String mealType = data['meal_type'] ?? "Meal";
+    double calories = (data['total_calories'] ?? 0).toDouble();
+    Timestamp? timestamp = data['timestamp'];
+
+    // Format Date (e.g., "12:30 PM")
+    String timeString = timestamp != null
+        ? DateFormat('h:mm a').format(timestamp.toDate())
+        : "Just now";
+
+    // Format Date Header (e.g., "Oct 24")
+    String dateString = timestamp != null
+        ? DateFormat('MMM d').format(timestamp.toDate())
+        : "";
+
+    return GestureDetector(
+      onTap: () {
+        // 🔗 Navigate to the Detail Screen you created!
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MealHistoryDetailScreen(mealData: data),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+          ],
+        ),
+        child: Row(
+          children: [
+            // 1. IMAGE (Left Side)
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20)),
+                image: imageUrl.isNotEmpty
+                    ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                    : null,
+                color: Colors.grey[200],
+              ),
+              child: imageUrl.isEmpty
+                  ? const Icon(Icons.fastfood, color: Colors.grey)
+                  : null,
+            ),
+
+            // 2. TEXT INFO (Middle)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      mealType, // e.g. "Lunch"
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      "$dateString • $timeString",
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 3. CALORIES (Right Side)
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "${calories.toInt()}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF5F7E5B)),
+                  ),
+                  const Text("kcal", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

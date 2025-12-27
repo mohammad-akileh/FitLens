@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
-import 'meal_details_screen.dart';
+import '../screens/meal_history_detail_screen.dart'; // This import works now!
 
 class ScanScreen extends StatefulWidget {
   final String mealType;
-  const ScanScreen({super.key,required this.mealType});
+  const ScanScreen({super.key, required this.mealType});
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -16,27 +16,27 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService = ApiService(); // Ensure ApiService is defined in services
   bool _isLoading = false;
 
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color buttonColor = const Color(0xFFF6F5F0);
 
-  // 1. Just pick the image, DON'T scan yet
+  // 1. Pick Image
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
         setState(() {
-          _imageFile = File(pickedFile.path); // Just show it!
+          _imageFile = File(pickedFile.path);
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error picking image: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
-  // 2. NOW we scan (when user clicks button)
+  // 2. Analyze & Navigate
   Future<void> _analyzeMeal() async {
     if (_imageFile == null) return;
 
@@ -47,13 +47,13 @@ class _ScanScreenState extends State<ScanScreen> {
       String result = await _apiService.analyzeImage(_imageFile!);
 
       if (mounted) {
-        // Go to Results
+        // Go to Results -> This call is now VALID ✅
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MealDetailsScreen(
-              imageFile: _imageFile,
-              aiResponse: result,
+            builder: (context) => MealHistoryDetailScreen(
+              imageFile: _imageFile, // Passed correctly
+              aiResponse: result,    // Passed correctly
             ),
           ),
         );
@@ -72,11 +72,11 @@ class _ScanScreenState extends State<ScanScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Scan ${widget.mealType}", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: Text("Scan ${widget.mealType}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -92,7 +92,6 @@ class _ScanScreenState extends State<ScanScreen> {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.grey.withOpacity(0.3), width: 2),
                 ),
-                // --- SHOW IMAGE OR BUTTONS ---
                 child: _imageFile != null
                     ? ClipRRect(
                   borderRadius: BorderRadius.circular(18),
@@ -101,59 +100,56 @@ class _ScanScreenState extends State<ScanScreen> {
                     : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.camera_alt_rounded, size: 60, color: Colors.grey),
-                    SizedBox(height: 20),
+                    const Icon(Icons.camera_alt_rounded, size: 60, color: Colors.grey),
+                    const SizedBox(height: 20),
                     Text("Take a photo of your meal", style: TextStyle(color: Colors.grey[600], fontSize: 16)),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 30),
 
-            SizedBox(height: 30),
-
-            // --- THE BUTTONS ---
+            // Buttons Logic
             if (_imageFile == null) ...[
-              // Option A: No Image yet -> Show Camera/Gallery Buttons
               Row(
                 children: [
                   Expanded(child: _buildActionButton("Camera", Icons.camera, () => _pickImage(ImageSource.camera))),
-                  SizedBox(width: 15),
+                  const SizedBox(width: 15),
                   Expanded(child: _buildActionButton("Gallery", Icons.photo_library, () => _pickImage(ImageSource.gallery))),
                 ],
               ),
             ] else ...[
-              // Option B: Image Selected -> Show "Retake" or "Analyze"
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => setState(() => _imageFile = null),
                       style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 15),
-                        side: BorderSide(color: Colors.grey),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        side: const BorderSide(color: Colors.grey),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
                       child: Text("Retake", style: TextStyle(color: Colors.grey[800], fontSize: 16)),
                     ),
                   ),
-                  SizedBox(width: 15),
+                  const SizedBox(width: 15),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _analyzeMeal,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: mainTextColor,
-                        padding: EdgeInsets.symmetric(vertical: 15),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
                       child: _isLoading
-                          ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text("Analyze Meal", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text("Analyze Meal", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
               ),
             ],
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -164,10 +160,10 @@ class _ScanScreenState extends State<ScanScreen> {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, color: Colors.white),
-      label: Text(label, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      label: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: mainTextColor,
-        padding: EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       ),
     );
