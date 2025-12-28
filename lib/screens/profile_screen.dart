@@ -1,4 +1,4 @@
-// lib/screens/profile_screen.dart
+// lib/screens/old_profile_screen.dart
 import 'package:flutter/material.dart';
 
 class ProfileScreen extends StatelessWidget {

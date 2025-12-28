@@ -129,7 +129,15 @@ def correct_meal_item(req: https_fn.Request) -> https_fn.Response:
         The user identified: "{wrong_item}" but said it is actually "{correction}".
         Please provide the nutritional info for 1 STANDARD SERVING of "{correction}".
         IMPORTANT: ESTIMATE values. Do NOT return 0.
-        Return ONLY a raw JSON object.
+        Return ONLY a raw JSON object with this EXACT format:
+        {{
+            "food_name": "{correction}",
+            "serving_unit": "1 serving",
+            "calories_per_serving": 100,
+            "protein_per_serving": 10,
+            "carbs_per_serving": 10,
+            "fat_per_serving": 5
+        }}
         """
 
         parts = [prompt]

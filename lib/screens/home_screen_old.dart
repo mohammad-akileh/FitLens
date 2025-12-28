@@ -4,7 +4,7 @@
 // import '../services/auth_service.dart';
 // import '../auth_gate.dart'; // <-- MAKE SURE THIS IS HERE
 // import 'scan_screen.dart';
-// import 'profile_screen.dart';
+// import 'old_profile_screen.dart';
 // import 'meal_details_screen.dart'; // For your test button
 //
 // class HomeScreen extends StatefulWidget {

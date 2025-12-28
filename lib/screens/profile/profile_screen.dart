@@ -1,4 +1,4 @@
-// lib/screens/profile/profile_screen.dart
+// lib/screens/profile/old_profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';

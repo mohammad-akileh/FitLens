@@ -58,7 +58,7 @@ class _MainScreenState extends State<MainScreen> {
     const HomeScreen(), // 🏠 1. The Real Home Screen
     const HistoryTab(), // 📊 2. The Real History Screen
     const Center(child: Text("Search Screen (Coming Soon)", style: TextStyle(fontSize: 24, color: Colors.grey))), // 🔍 3. Dummy Search
-    const Center(child: Text("Profile Screen (Coming Soon)", style: TextStyle(fontSize: 24, color: Colors.grey))), // 👤 4. Dummy Profile
+    const ProfileTab(),
   ];
 
   @override

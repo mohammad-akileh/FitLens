@@ -173,13 +173,24 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- WIDGETS ---
 
 // In HomeScreen class
-  Widget _buildHeader(String name, String? photoUrl) { // <- Add photoUrl parameter
+// In HomeScreen class
+  Widget _buildHeader(String name, String? photoUrl) {
+    // 1. Get the current Auth user to access Google Photo
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    // 2. Decide which image to show: Firestore -> Google -> Default
+    ImageProvider? imageProvider;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      imageProvider = NetworkImage(photoUrl);
+    } else if (currentUser?.photoURL != null) {
+      imageProvider = NetworkImage(currentUser!.photoURL!);
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            // Use a network image if available, otherwise a default icon
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -190,23 +201,23 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.grey[300],
-                backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-                child: photoUrl == null
-                    ? Icon(Icons.person, color: Colors.grey[600])
+                backgroundImage: imageProvider, // <--- USE THE SMART PROVIDER
+                child: imageProvider == null
+                    ? const Icon(Icons.person, color: Colors.grey)
                     : null,
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Hello,", style: TextStyle(fontSize: 14, color: Colors.grey)),
-                Text(name, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text("Hello,", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ],
         ),
-        // ... (Rest of the header remains the same)
+        // ... (Rest of the header if you had icons on the right)
       ],
     );
   }
