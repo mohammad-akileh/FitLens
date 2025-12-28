@@ -70,12 +70,12 @@ class HistoryTab extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         // 🔗 Navigate to the Detail Screen you created!
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MealHistoryDetailScreen(mealData: data),
-          ),
-        );
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => MealHistoryDetailScreen(mealData: data),
+        //   ),
+        // );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),

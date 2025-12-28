@@ -477,36 +477,44 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     );
   }
 
+// 🎨 UPDATED: Responsive Input Row (Fixes Overflow on Small Screens)
   Widget _buildEditableItem(String label, TextEditingController controller, {bool isNumber = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // 1. The Label (Flexible allows it to shrink if needed, but usually stays full)
           Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          SizedBox(width: 10),
-          SizedBox(
-            width: 160,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: TextField(
-                controller: controller,
-                keyboardType: isNumber ? TextInputType.numberWithOptions(decimal: true) : TextInputType.name,
-                textAlign: TextAlign.right,
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  hintText: "Enter value",
-                  suffixIcon: Icon(Icons.edit, size: 14, color: Colors.grey[400]),
-                  suffixIconConstraints: BoxConstraints(maxHeight: 20, minWidth: 25),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+
+          const SizedBox(width: 10), // Spacer
+
+          // 2. The Input Box (Flexible + ConstrainedBox)
+          // We remove the hardcoded SizedBox(width: 160) and use Flexible
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160, minWidth: 80), // Max 160, but can shrink!
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[300]!),
                 ),
-                style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
+                child: TextField(
+                  controller: controller,
+                  keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.name,
+                  textAlign: TextAlign.right,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "Enter value",
+                    suffixIcon: Icon(Icons.edit, size: 14, color: Colors.grey[400]),
+                    suffixIconConstraints: const BoxConstraints(maxHeight: 20, minWidth: 25),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
+                ),
               ),
             ),
           ),
