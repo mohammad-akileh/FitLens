@@ -1,12 +1,13 @@
+// lib/screens/main_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For SystemNavigator
+import 'package:flutter/services.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import '../services/database_service.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/history_tab.dart';
-import 'tabs/profile_tab.dart'; // Ensure you have this or use Placeholder
+import 'tabs/profile_tab.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,7 +16,6 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-// 1. ADD THE OBSERVER MIXIN 👇
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   // 🎨 COLORS
   final Color activeColor = const Color(0xFF5F7E5B);
@@ -33,32 +33,57 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    // 2. LISTEN TO APP LIFECYCLE 👇
-    WidgetsBinding.instance.addObserver(this);
-
+    WidgetsBinding.instance.addObserver(this); // Start listening to lifecycle
     _repairUserDatabase();
-    if (FirebaseAuth.instance.currentUser != null) {
-      DatabaseService().checkAndResetDailyStats(FirebaseAuth.instance.currentUser!.uid);
-    }
+    _runMidnightCheck();
   }
 
   @override
   void dispose() {
-    // 3. STOP LISTENING WHEN CLOSED 👇
-    WidgetsBinding.instance.removeObserver(this);
+    WidgetsBinding.instance.removeObserver(this); // Stop listening
     super.dispose();
   }
 
-  // 4. THE LIFECYCLE FIX (The Ghost Buster 👻) 👇
+  // 🦅 THE GHOST BUSTER & TIME TRAVELER 🦅
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // The app just woke up!
-      // Forcefully WIPE the back button memory so it doesn't remember the old click.
+      // 1. Wipe Back Button Memory (Ghost Click Fix)
       setState(() {
         _lastPressedAt = null;
       });
-      print("☀️ App Resumed - Back button memory wiped.");
+
+      // 2. Check for New Day (Time Travel Fix)
+      _checkIfDayChanged();
+
+      // 3. Run the Database Reset Logic again just in case
+      _runMidnightCheck();
+    }
+  }
+
+  // Helper: Checks if the app is stuck on an old date
+  void _checkIfDayChanged() {
+    final now = DateTime.now();
+    // If the selected date is NOT today...
+    bool isSelectedDateToday = _globalDate.year == now.year &&
+        _globalDate.month == now.month &&
+        _globalDate.day == now.day;
+
+    // ...BUT we were supposed to be on "Live Mode" (implying we drifted into a new day)
+    // We force the calendar to jump to the new Today.
+    if (!isSelectedDateToday) {
+      // Only auto-jump if the user hasn't explicitly navigated way back in history.
+      // For now, let's assume if the app wakes up, we prefer showing Today.
+      print("📅 Detected a new day! Jumping to Today.");
+      setState(() {
+        _globalDate = now;
+      });
+    }
+  }
+
+  void _runMidnightCheck() {
+    if (FirebaseAuth.instance.currentUser != null) {
+      DatabaseService().checkAndResetDailyStats(FirebaseAuth.instance.currentUser!.uid);
     }
   }
 
@@ -103,7 +128,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       onPopInvoked: (bool didPop) async {
         if (didPop) return;
 
-        // A. If NOT on Home Tab, go to Home Tab
         if (_selectedIndex != 0) {
           setState(() {
             _selectedIndex = 0;
@@ -111,21 +135,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // B. Double Tap Logic
         final now = DateTime.now();
         final maxDuration = const Duration(seconds: 2);
-
-        // Check if the warning is still valid
         final isWarningStillActive = _lastPressedAt != null &&
             now.difference(_lastPressedAt!) < maxDuration;
 
         if (isWarningStillActive) {
-          // EXIT APP
-          // We wipe memory here too, just in case
           _lastPressedAt = null;
           SystemNavigator.pop();
         } else {
-          // FIRST TAP
           _lastPressedAt = now;
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
