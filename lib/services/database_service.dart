@@ -40,6 +40,7 @@ class DatabaseService {
         'target_carbs': data['target_carbs'] ?? 250,
         'target_fat': data['target_fat'] ?? 65,
         'target_water': data['target_water'] ?? 2500,
+        'app_secret': 'FitLens_VIP_2025', // 👈 ADDED!
       });
 
       // 2. Reset the MAIN User Document to 0 (Wipe the Desk)
@@ -50,6 +51,7 @@ class DatabaseService {
         'current_fat': 0,
         'current_water': 0,
         'last_active_date': todayDate, // ✅ Set today as the new active date
+        'app_secret': 'FitLens_VIP_2025', // 👈 ADDED!
       });
 
       print("✅ Daily stats reset for $todayDate");
@@ -181,6 +183,7 @@ class DatabaseService {
         'current_carbs': FieldValue.increment(mealCarbs),
         'current_fat': FieldValue.increment(mealFat),
         'last_active_date': DateFormat('yyyy-MM-dd').format(DateTime.now()), // Ensure date is today
+        'app_secret': 'FitLens_VIP_2025', // 👈 ADDED!
       });
 
       await batch.commit();

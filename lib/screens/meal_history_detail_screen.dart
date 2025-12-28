@@ -22,7 +22,8 @@ class MealHistoryDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<MealHistoryDetailScreen> createState() => _MealHistoryDetailScreenState();
+  State<MealHistoryDetailScreen> createState() =>
+      _MealHistoryDetailScreenState();
 }
 
 class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
@@ -48,7 +49,10 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       // --- SCAN MODE ---
       try {
         print("RAW AI RESPONSE: ${widget.aiResponse}");
-        String cleanJson = widget.aiResponse!.replaceAll('```json', '').replaceAll('```', '').trim();
+        String cleanJson = widget.aiResponse!
+            .replaceAll('```json', '')
+            .replaceAll('```', '')
+            .trim();
         dynamic decoded = jsonDecode(cleanJson);
 
         if (decoded is List) {
@@ -75,12 +79,15 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
 
       // Default serving to 1.0 if missing
       if (newItem['user_serving'] == null) {
-        newItem['user_serving'] = (newItem['user_serving_count'] ?? 1).toDouble();
+        newItem['user_serving'] =
+            (newItem['user_serving_count'] ?? 1).toDouble();
       }
 
       // Generate UUID for Dismissible if missing
       if (newItem['uuid'] == null) {
-        newItem['uuid'] = DateTime.now().microsecondsSinceEpoch.toString() + "_" + (newItem['food_name'] ?? "x");
+        newItem['uuid'] = DateTime.now().microsecondsSinceEpoch.toString() +
+            "_" +
+            (newItem['food_name'] ?? "x");
       }
 
       preparedItems.add(newItem);
@@ -125,8 +132,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       Map<String, dynamic> newResult = await ApiService().correctScan(
           widget.imageFile, // Might be null in history mode, handled by API?
           _foodItems[index]['food_name'] ?? "Food",
-          correction
-      );
+          correction);
 
       // Preserve serving and UUID
       newResult['user_serving'] = _foodItems[index]['user_serving'] ?? 1.0;
@@ -138,7 +144,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         _isLoading = false;
       });
       _showSnack("Updated to $correction", Colors.green);
-
     } catch (e) {
       setState(() => _isLoading = false);
       _showSnack("Failed to correct (AI unavailable): $e", Colors.red);
@@ -165,11 +170,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   Future<void> _performAddItem(String name) async {
     setState(() => _isLoading = true);
     try {
-      Map<String, dynamic> newItem = await ApiService().correctScan(
-          widget.imageFile,
-          "nothing",
-          name
-      );
+      Map<String, dynamic> newItem =
+          await ApiService().correctScan(widget.imageFile, "nothing", name);
 
       newItem['user_serving'] = 1.0;
       newItem['user_serving_count'] = 1.0;
@@ -180,7 +182,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         _isLoading = false;
       });
       _showSnack("Added $name", Colors.green);
-
     } catch (e) {
       setState(() => _isLoading = false);
       _showSnack("Failed to add: $e", Colors.red);
@@ -213,22 +214,65 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
 
   // --- 5. SAVE LOGIC (Connects to DatabaseService) ---
   void _saveMeal() async {
+    // 1. Validation (Keep existing logic)
     if (_foodItems.isEmpty) return;
-    setState(() => _isLoading = true);
+
+    // 🛑 NO setState. We show a Dialog instead.
+
+    // 2. 🎨 BEAUTIFUL UI DIALOG
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User can't click away
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent, // Makes corners see-through
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          decoration: BoxDecoration(
+            color: Colors.white, // Clean background
+            borderRadius: BorderRadius.circular(20), // Soft corners
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min, // Shrink to fit content
+            children: [
+              // Your App's Theme Green
+              CircularProgressIndicator(color: Color(0xFF5F7E5B)),
+              SizedBox(height: 25),
+              Text(
+                "Saving your meal...",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87, // Dark Grey (Easy to read)
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         String permanentUrl = "";
 
-        // Logic: Use existing URL if history, upload if new file
+        // 3. Image Upload Logic (Untouched)
         if (widget.imageFile != null) {
-          // Calls the DatabaseService upload we made earlier
           permanentUrl = await DatabaseService().uploadImage(widget.imageFile!);
         } else {
           permanentUrl = widget.mealData?['image_url'] ?? "";
         }
 
-        // Save to DB
+        // 4. Save to DB Logic (Untouched)
         await DatabaseService().saveMeal(
           uid: uid,
           foodItems: _foodItems,
@@ -237,32 +281,55 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         );
 
         if (mounted) {
+          // Close the Loading Dialog
+          Navigator.pop(context);
+
           _showSnack("Meal saved!", Colors.green);
-          // Navigate back to MainScreen to refresh
-          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MainScreen()), (route) => false);
+
+          // Go back to Main Screen
+          Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainScreen()),
+              (route) => false);
         }
       }
     } catch (e) {
-      if (mounted) _showSnack("Error: $e", Colors.red);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        // If error, Close Dialog so user isn't stuck
+        Navigator.pop(context);
+        _showSnack("Error: $e", Colors.red);
+      }
     }
   }
 
   // --- HELPERS ---
-  Widget _buildInputDialog({required String title, required String hint, required TextEditingController controller, required VoidCallback onConfirm}) {
+  Widget _buildInputDialog(
+      {required String title,
+      required String hint,
+      required TextEditingController controller,
+      required VoidCallback onConfirm}) {
     return AlertDialog(
       title: Text(title),
-      content: TextField(controller: controller, decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder())),
+      content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+              hintText: hint, border: const OutlineInputBorder())),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
-        ElevatedButton(onPressed: onConfirm, style: ElevatedButton.styleFrom(backgroundColor: mainTextColor), child: const Text("Confirm", style: TextStyle(color: Colors.white))),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
+        ElevatedButton(
+            onPressed: onConfirm,
+            style: ElevatedButton.styleFrom(backgroundColor: mainTextColor),
+            child:
+                const Text("Confirm", style: TextStyle(color: Colors.white))),
       ],
     );
   }
 
   void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
@@ -272,26 +339,32 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     if (widget.imageFile != null) {
       imageWidget = Image.file(widget.imageFile!, fit: BoxFit.cover);
     } else if (widget.mealData != null && widget.mealData!['image_url'] != "") {
-      imageWidget = Image.network(widget.mealData!['image_url'], fit: BoxFit.cover);
+      imageWidget =
+          Image.network(widget.mealData!['image_url'], fit: BoxFit.cover);
     } else {
       imageWidget = const Icon(Icons.image, size: 50, color: Colors.grey);
     }
 
-    return Stack( // 👈 1. USE STACK
+    return Stack(
+      // 👈 1. USE STACK
       children: [
         // 2. THE MAIN CONTENT (Your existing Scaffold)
         Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
-              title: const Text("Meal Breakdown", style: TextStyle(color: Colors.black)),
+              title: const Text("Meal Breakdown",
+                  style: TextStyle(color: Colors.black)),
               backgroundColor: Colors.white,
               elevation: 0,
-              iconTheme: const IconThemeData(color: Colors.black)
-          ),
+              iconTheme: const IconThemeData(color: Colors.black)),
           body: Column(
             children: [
               // Image
-              Container(height: 200, width: double.infinity, color: Colors.grey[200], child: imageWidget),
+              Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: Colors.grey[200],
+                  child: imageWidget),
 
               // List
               Expanded(
@@ -305,8 +378,13 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                         padding: const EdgeInsets.only(top: 10, bottom: 30),
                         child: TextButton.icon(
                           onPressed: _addMissingItem,
-                          icon: Icon(Icons.add_circle, color: mainTextColor, size: 28),
-                          label: Text("Add Missing Item", style: TextStyle(color: mainTextColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                          icon: Icon(Icons.add_circle,
+                              color: mainTextColor, size: 28),
+                          label: Text("Add Missing Item",
+                              style: TextStyle(
+                                  color: mainTextColor,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       );
                     }
@@ -319,9 +397,12 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                       background: Container(
                         margin: const EdgeInsets.only(bottom: 15),
                         padding: const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(color: Colors.red[100], borderRadius: BorderRadius.circular(20)),
+                        decoration: BoxDecoration(
+                            color: Colors.red[100],
+                            borderRadius: BorderRadius.circular(20)),
                         alignment: Alignment.centerRight,
-                        child: const Icon(Icons.delete, color: Colors.red, size: 30),
+                        child: const Icon(Icons.delete,
+                            color: Colors.red, size: 30),
                       ),
                       onDismissed: (direction) => _deleteItem(index),
                       child: _buildFoodCard(item, index),
@@ -334,11 +415,19 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: SizedBox(
-                  width: double.infinity, height: 55,
+                  width: double.infinity,
+                  height: 55,
                   child: ElevatedButton(
                     onPressed: _saveMeal,
-                    style: ElevatedButton.styleFrom(backgroundColor: mainTextColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                    child: const Text("Save Meal", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: mainTextColor,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30))),
+                    child: const Text("Save Meal",
+                        style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),
@@ -349,7 +438,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         // 3. THE GLASS LOADER OVERLAY 🕵️‍♂️
         // 3. THE BEAUTIFUL GLASS LOADER ✨
         if (_isLoading)
-          Positioned.fill( // Covers the whole screen
+          Positioned.fill(
+            // Covers the whole screen
             child: Stack(
               children: [
                 // A. Blur Effect
@@ -362,25 +452,34 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                 // B. The Card
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 30),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 5))],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 15,
+                            offset: Offset(0, 5))
+                      ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(color: Color(0xFF5F7E5B)), // Main Green
+                        const CircularProgressIndicator(
+                            color: Color(0xFF5F7E5B)), // Main Green
                         const SizedBox(height: 20),
                         const Text(
                           "Consulting AI Chef... 👨‍🍳",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 5),
                         Text(
                           "Analyzing nutrition data",
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
@@ -424,16 +523,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                     Row(
                       children: [
                         Flexible(
-                          child: Text(
-                              item['food_name'] ?? "Unknown",
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis
-                          ),
+                          child: Text(item['food_name'] ?? "Unknown",
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis),
                         ),
                         const SizedBox(width: 5),
                         InkWell(
                           onTap: () => _editItem(index),
-                          child: const Padding(padding: EdgeInsets.all(4.0), child: Icon(Icons.edit, size: 18, color: Colors.grey)),
+                          child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(Icons.edit,
+                                  size: 18, color: Colors.grey)),
                         ),
                       ],
                     ),
@@ -441,25 +542,29 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
 
                     // Compact Counter
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.withOpacity(0.3))),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border:
+                              Border.all(color: Colors.grey.withOpacity(0.3))),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           InkWell(
                               onTap: () => _updateServing(index, -0.5),
-                              child: Icon(Icons.remove_circle, size: 20, color: mainTextColor)
-                          ),
+                              child: Icon(Icons.remove_circle,
+                                  size: 20, color: mainTextColor)),
                           const SizedBox(width: 8),
-                          Text(
-                              "$servingFactor x",
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)
-                          ),
+                          Text("$servingFactor x",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
                           const SizedBox(width: 8),
                           InkWell(
                               onTap: () => _updateServing(index, 0.5),
-                              child: Icon(Icons.add_circle, size: 20, color: mainTextColor)
-                          ),
+                              child: Icon(Icons.add_circle,
+                                  size: 20, color: mainTextColor)),
                         ],
                       ),
                     ),
@@ -477,7 +582,10 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                   children: [
                     Text(
                       "${(baseCals * servingFactor).toStringAsFixed(0)} kcal",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: mainTextColor),
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: mainTextColor),
                       textAlign: TextAlign.end,
                     ),
                     const SizedBox(height: 5),
@@ -487,7 +595,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                       textAlign: TextAlign.end,
                       maxLines: 2, // Allow it to wrap to 2 lines
-                      overflow: TextOverflow.ellipsis, // Add "..." if still too long
+                      overflow:
+                          TextOverflow.ellipsis, // Add "..." if still too long
                     ),
                   ],
                 ),
@@ -500,9 +609,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildMacro("Protein", "${(baseProt * servingFactor).toStringAsFixed(1)}g", Colors.blue[100]!),
-              _buildMacro("Carbs", "${(baseCarbs * servingFactor).toStringAsFixed(1)}g", Colors.orange[100]!),
-              _buildMacro("Fat", "${(baseFat * servingFactor).toStringAsFixed(1)}g", Colors.red[100]!),
+              _buildMacro(
+                  "Protein",
+                  "${(baseProt * servingFactor).toStringAsFixed(1)}g",
+                  Colors.blue[100]!),
+              _buildMacro(
+                  "Carbs",
+                  "${(baseCarbs * servingFactor).toStringAsFixed(1)}g",
+                  Colors.orange[100]!),
+              _buildMacro(
+                  "Fat",
+                  "${(baseFat * servingFactor).toStringAsFixed(1)}g",
+                  Colors.red[100]!),
             ],
           ),
         ],
@@ -513,8 +631,16 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   Widget _buildMacro(String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: color.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
-      child: Column(children: [Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), const SizedBox(height: 2), Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))]),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(10)),
+      child: Column(children: [
+        Text(label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))
+      ]),
     );
   }
 }
