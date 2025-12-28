@@ -71,7 +71,10 @@ class HistoryTab extends StatelessWidget {
         : "Just now";
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => MealHistoryDetailScreen(mealData: data))),
+      // 📄 OPEN DETAIL
+      // 🔑 THIS IS THE MAGIC: It updates automatically when HomeTab changes the date
+      //onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => MealHistoryDetailScreen(mealData: data))),
+      onTap: () {/*To open the detail screen () => Navigator.push(context, MaterialPageRoute(builder: (context) => MealHistoryDetailScreen(mealData: data))) */},
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),
         height: 100,
