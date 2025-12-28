@@ -96,15 +96,40 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<void> _repairUserDatabase() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userDoc = await userRef.get();
+
+    // 🛡️ IF NEW USER (Or Broken Data): Create the PERFECT Clean Structure
     if (!userDoc.exists) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      print("🚑 Creating Fresh User Database...");
+      await userRef.set({
+        // Profile Defaults
         'email': user.email,
         'first_name': user.displayName ?? 'Besti',
         'created_at': FieldValue.serverTimestamp(),
+        'onboarding_completed': false, // Force them to check profile if needed
+
+        // 🎯 Targets (Default Safety Net)
         'target_calories': 2000,
+        'target_protein': 150,
+        'target_carbs': 250,
+        'target_fat': 65,
+        'target_water': 2500,
+
+        // 📅 The Anchor (Today's Date)
+        'last_active_date': "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2,'0')}-${DateTime.now().day.toString().padLeft(2,'0')}",
+
+        // ⚡ Live Counters (Start at 0)
+        'current_calories': 0,
+        'current_protein': 0,
+        'current_carbs': 0,
+        'current_fat': 0,
+        'current_water': 0,
+
         'app_secret': 'FitLens_VIP_2025',
       }, SetOptions(merge: true));
+      print("✅ Fresh User Database Created!");
     }
   }
 
