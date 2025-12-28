@@ -1,4 +1,3 @@
-// lib/screens/tabs/home_tab.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,12 +6,20 @@ import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
 import '../../services/database_service.dart';
-import '../scan_screen.dart'; // Ensure this import exists
+import '../scan_screen.dart';
 import '../profile/profile_screen.dart';
 import '../meal_history_detail_screen.dart';
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  // 📥 Receive Date from MainScreen
+  final DateTime currentDate;
+  final Function(DateTime) onDateChanged;
+
+  const HomeTab({
+    super.key,
+    required this.currentDate,
+    required this.onDateChanged
+  });
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -22,12 +29,9 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final DatabaseService _dbService = DatabaseService();
-
-  // 📅 TIME TRAVEL STATE
-  DateTime _selectedDate = DateTime.now();
   Timer? _midnightTimer;
 
-  // 🎨 OLD DESIGN COLORS
+  // 🎨 COLORS (Your Old Design)
   final Color cardDark = const Color(0xB34A5F48);
   final Color cardLight = const Color(0xFF9AAC95).withOpacity(0.6);
   final Color progressGreen = const Color(0xFF00E676).withOpacity(1);
@@ -39,7 +43,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _setupMidnightTimer();
-    _runStartupChecks();
   }
 
   @override
@@ -49,23 +52,15 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // 🚦 STARTUP CHECKS
-  void _runStartupChecks() {
-    final user = _auth.currentUser;
-    if (user != null) {
-      _dbService.checkAndResetDailyStats(user.uid);
-    }
+  // 📅 CHECK IF GLOBAL DATE IS TODAY
+  bool get _isToday {
+    final now = DateTime.now();
+    return widget.currentDate.year == now.year &&
+        widget.currentDate.month == now.month &&
+        widget.currentDate.day == now.day;
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _runStartupChecks();
-      setState(() { _selectedDate = DateTime.now(); });
-    }
-  }
-
-  // 🕛 MIDNIGHT TIMER
+  // 🕛 MIDNIGHT LOGIC
   void _setupMidnightTimer() {
     DateTime now = DateTime.now();
     DateTime nextMidnight = DateTime(now.year, now.month, now.day + 1);
@@ -73,17 +68,17 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
 
     _midnightTimer = Timer(timeUntilMidnight, () {
       print("🕛 Midnight Timer Triggered!");
-      _runStartupChecks();
-      setState(() { _selectedDate = DateTime.now(); });
+      _dbService.checkAndResetDailyStats(_auth.currentUser!.uid);
+      // Tell MainScreen to switch to the new Today
+      widget.onDateChanged(DateTime.now());
       _setupMidnightTimer();
     });
   }
 
-  // 📅 DATE PICKER
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: widget.currentDate,
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
       builder: (context, child) {
@@ -96,23 +91,14 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
         );
       },
     );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+    if (picked != null) {
+      // 📞 Tell MainScreen to update
+      widget.onDateChanged(picked);
     }
   }
 
-  bool get _isToday {
-    final now = DateTime.now();
-    return _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-  }
-
-  // 💧 ADD WATER LOGIC
   Future<void> _addWater(String uid, int currentWater) async {
-    if (!_isToday) return; // Cannot add water to history
+    if (!_isToday) return;
     int newWater = currentWater + 250;
     await _db.collection('users').doc(uid).update({
       'current_water': newWater,
@@ -121,7 +107,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
   }
 
   void _openScanScreen(BuildContext context, String mealType) {
-    if (!_isToday) return; // Cannot scan for history
+    if (!_isToday) return;
     Navigator.push(context, MaterialPageRoute(builder: (context) => ScanScreen(mealType: mealType)));
   }
 
@@ -130,7 +116,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     User? user = _auth.currentUser;
     if (user == null) return const Center(child: Text("Please login"));
 
-    // 🧠 LOGIC SWITCH: Stream (Live) vs Future (History)
+    // SWITCH: Stream (Live) vs Future (History)
     if (_isToday) {
       return StreamBuilder<DocumentSnapshot>(
         stream: _db.collection('users').doc(user.uid).snapshots(),
@@ -142,10 +128,11 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
       );
     } else {
       return FutureBuilder<Map<String, dynamic>?>(
-        future: _dbService.getHistoryForDate(user.uid, _selectedDate),
+        // 🔑 Forces refresh when date changes
+        key: ValueKey(widget.currentDate.toString()),
+        future: _dbService.getHistoryForDate(user.uid, widget.currentDate),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          // If no history exists, use default 0s
           var data = snapshot.data ?? {
             'calories': 0, 'protein': 0, 'carbs': 0, 'fat': 0, 'water': 0,
             'target_calories': 2000,
@@ -157,7 +144,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     }
   }
 
-  // 🎨 THE MASTER LAYOUT (OLD DESIGN PRESERVED)
+  // 🎨 YOUR OLD DESIGN LAYOUT
   Widget _buildDesignLayout(Map<String, dynamic> data, {required bool isHistory}) {
     final Size screenSize = MediaQuery.of(context).size;
     final double screenWidth = screenSize.width;
@@ -165,18 +152,16 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     final double padding = screenWidth * 0.05;
     final double mainCardHeight = screenHeight * 0.28;
 
-    // --- DATA EXTRACTION (SAFE CASTING) ---
     String firstName = data['name'] ?? data['first_name'] ?? "User";
     String? photoUrl = data['photo_url'];
 
-    // Targets
+    // Safe Casting
     double targetCals = (data['target_calories'] ?? 2000).toDouble();
     double targetWater = (data['target_water'] ?? 2500).toDouble();
     double targetProt = (data['target_protein'] ?? 150).toDouble();
     double targetCarb = (data['target_carbs'] ?? 250).toDouble();
     double targetFat = (data['target_fat'] ?? 65).toDouble();
 
-    // Current (Handle keys for Live vs History)
     double currentCals = isHistory ? (data['calories'] ?? 0).toDouble() : (data['current_calories'] ?? 0).toDouble();
     double currentWater = isHistory ? (data['water'] ?? 0).toDouble() : (data['current_water'] ?? 0).toDouble();
     double currentProt = isHistory ? (data['protein'] ?? 0).toDouble() : (data['current_protein'] ?? 0).toDouble();
@@ -188,8 +173,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
         children: [
           // 1. BACKGROUND IMAGE
           Container(
-            height: double.infinity,
-            width: double.infinity,
+            height: double.infinity, width: double.infinity,
             decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/intro_back.jpg'),
@@ -198,7 +182,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
               ),
             ),
           ),
-
           // 2. CONTENT
           SafeArea(
             child: SingleChildScrollView(
@@ -206,15 +189,10 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- HEADER WITH CALENDAR ---
                   _buildHeader(firstName, photoUrl, isHistory),
                   const SizedBox(height: 20),
-
-                  // --- MAIN GAUGE CARD ---
                   _buildMainCalorieCard(mainCardHeight, screenWidth, currentCals, targetCals),
                   const SizedBox(height: 20),
-
-                  // --- MACROS ROW ---
                   IntrinsicHeight(
                     child: Row(
                       children: [
@@ -227,12 +205,10 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // --- WATER CARD (SAMSUNG STYLE) ---
                   _buildWaterCard(screenWidth, currentWater, targetWater, _auth.currentUser!.uid, isHistory),
                   const SizedBox(height: 20),
 
-                  // --- MEALS HEADER ---
+                  // MEALS HEADER
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -240,18 +216,17 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                       if (isHistory)
                         GestureDetector(
-                          onTap: () => setState(() => _selectedDate = DateTime.now()),
+                          onTap: () => widget.onDateChanged(DateTime.now()),
                           child: const Text("Back to Today", style: TextStyle(color: Color(0xFF4A5F48), fontWeight: FontWeight.bold)),
                         )
                     ],
                   ),
                   const SizedBox(height: 10),
 
-                  // --- MEALS LIST ---
                   if (isHistory)
-                    _buildHistoryMealsList() // Shows List of eaten meals with PICS
+                    _buildHistoryMealsList()
                   else
-                    Column( // Shows "Add Meal" buttons
+                    Column(
                       children: [
                         _buildMealTile("Breakfast", "Recommended 300-500 kcal", "assets/egg.png"),
                         _buildMealTile("Lunch", "Recommended 500-700 kcal", "assets/lunch_bowl.png"),
@@ -259,7 +234,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                         _buildMealTile("Snack", "Recommended 100-200 kcal", "assets/snack.png"),
                       ],
                     ),
-
                   const SizedBox(height: 40),
                 ],
               ),
@@ -270,10 +244,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     );
   }
 
-  // =================================================================
-  // 🧩 WIDGETS (OLD DESIGN + NEW FEATURES)
-  // =================================================================
-
+  // WIDGETS
   Widget _buildHeader(String name, String? photoUrl, bool isHistory) {
     User? currentUser = FirebaseAuth.instance.currentUser;
     ImageProvider? imageProvider;
@@ -302,13 +273,12 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(isHistory ? "History View" : "Hello,", style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                Text(isHistory ? DateFormat('MMM d').format(_selectedDate) : name,
+                Text(isHistory ? DateFormat('MMM d').format(widget.currentDate) : name,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ],
         ),
-        // 📅 CALENDAR ICON ADDED HERE
         Container(
           decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle),
           child: IconButton(
@@ -320,232 +290,14 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildMainCalorieCard(double height, double width, double current, double target) {
-    double percent = (current / target).clamp(0.0, 1.0);
-    bool isOver = current > target;
-
-    return Container(
-      height: height,
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: cardDark,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(height: height * 0.05),
-                  SizedBox(
-                    width: width * 0.6,
-                    height: (width * 0.6) / 2,
-                    child: CustomPaint(
-                      painter: GaugeChartPainter(
-                        percent: percent,
-                        progressColor: isOver ? progressRed : progressGreen,
-                        trackColor: trackColor,
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Image.asset("assets/fire.png", height: 30, width: 30, errorBuilder: (c, o, s) => const Icon(Icons.local_fire_department, color: Colors.white70)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: height * 0.03),
-                  Text("${current.toInt()} kcal", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text("of ${target.toInt()}", style: const TextStyle(fontSize: 14, color: Colors.white70)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMacroCard(String label, double current, double target) {
-    double percent = (current / target).clamp(0.0, 1.0);
-    bool isOver = current > target;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
-      decoration: BoxDecoration(
-        color: cardLight,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13)),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: percent,
-              backgroundColor: Colors.black12,
-              valueColor: AlwaysStoppedAnimation<Color>(isOver ? progressRed : progressGreen),
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text("${current.toInt()} / ${target.toInt()}g", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWaterCard(double screenWidth, double currentWater, double targetWater, String uid, bool isHistory) {
-    double percent = (currentWater / targetWater).clamp(0.0, 1.0);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xC32C2C2C),
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [const Icon(Icons.water_drop, color: Colors.blueAccent, size: 18), const SizedBox(width: 5), Text("Water Intake", style: TextStyle(fontSize: 14, color: Colors.grey[400]))]),
-                const SizedBox(height: 10),
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: currentWater),
-                  duration: const Duration(seconds: 1),
-                  builder: (context, value, child) {
-                    return RichText(
-                      text: TextSpan(
-                        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-                        children: [
-                          TextSpan(text: "${value.toInt()} "),
-                          TextSpan(text: "/ ${targetWater.toInt()} ml", style: TextStyle(fontSize: 16, color: Colors.grey[500])),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Hide Button if History
-                if (!isHistory)
-                  InkWell(
-                    onTap: () => _addWater(uid, currentWater.toInt()),
-                    borderRadius: BorderRadius.circular(30),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(color: const Color(0xFF3E3E3E), borderRadius: BorderRadius.circular(30)),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.add, color: Colors.white, size: 18),
-                          SizedBox(width: 5),
-                          Text("250 ml", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          _buildVisualCup(percent),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVisualCup(double percent) {
-    return SizedBox(
-      width: 60, height: 90,
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          ClipPath(
-            clipper: CupClipper(),
-            child: Container(
-              color: Colors.grey[800],
-              alignment: Alignment.bottomCenter,
-              child: FractionallySizedBox(
-                heightFactor: percent,
-                widthFactor: 1.0,
-                child: Container(decoration: BoxDecoration(color: Colors.blueAccent, boxShadow: [BoxShadow(color: Colors.blueAccent.withOpacity(0.5), blurRadius: 10)])),
-              ),
-            ),
-          ),
-          ClipPath(
-            clipper: CupClipper(),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-                gradient: LinearGradient(colors: [Colors.white.withOpacity(0.1), Colors.transparent], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMealTile(String title, String subtitle, String assetPath) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: cardLight, borderRadius: BorderRadius.circular(25)),
-      child: Row(
-        children: [
-          Container(
-            width: 50, height: 50,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle),
-            padding: const EdgeInsets.all(8),
-            child: Image.asset(assetPath, fit: BoxFit.contain, errorBuilder: (c,o,s) => const Icon(Icons.fastfood, color: Colors.orange)),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.black54), overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          InkWell(
-            onTap: () => _openScanScreen(context, title),
-            child: Container(
-              width: 40, height: 40,
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: const Icon(Icons.add, size: 24, color: Colors.black87),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 📸 HISTORY LIST (Shows what you ate, not add buttons)
   Widget _buildHistoryMealsList() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _dbService.getMealsForDate(_auth.currentUser!.uid, _selectedDate),
+      key: ValueKey(widget.currentDate.toString()),
+      stream: _dbService.getMealsForDate(_auth.currentUser!.uid, widget.currentDate),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         var meals = snapshot.data!;
-
-        if (meals.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("No meals recorded for this day.")));
+        if (meals.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("No meals recorded for this day.", style: TextStyle(color: Colors.grey))));
 
         return ListView.builder(
           shrinkWrap: true,
@@ -580,42 +332,25 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
       },
     );
   }
+
+  // (Keeping your exact visual widgets for Cards, Gauge, Water, etc)
+  Widget _buildMainCalorieCard(double height, double width, double current, double target) {
+    double percent = (current / target).clamp(0.0, 1.0);
+    bool isOver = current > target;
+    return Container(height: height, width: double.infinity, padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: cardDark, borderRadius: BorderRadius.circular(30)), child: Stack(children: [Center(child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [SizedBox(height: height * 0.05), SizedBox(width: width * 0.6, height: (width * 0.6) / 2, child: CustomPaint(painter: GaugeChartPainter(percent: percent, progressColor: isOver ? progressRed : progressGreen, trackColor: trackColor), child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [Image.asset("assets/fire.png", height: 30, width: 30, errorBuilder: (c, o, s) => const Icon(Icons.local_fire_department, color: Colors.white70))])))), SizedBox(height: height * 0.03), Text("${current.toInt()} kcal", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)), Text("of ${target.toInt()}", style: const TextStyle(fontSize: 14, color: Colors.white70))])))]));
+  }
+  Widget _buildMacroCard(String label, double current, double target) {
+    double percent = (current / target).clamp(0.0, 1.0);
+    bool isOver = current > target;
+    return Container(padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10), decoration: BoxDecoration(color: cardLight, borderRadius: BorderRadius.circular(20)), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13)), const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(5), child: LinearProgressIndicator(value: percent, backgroundColor: Colors.black12, valueColor: AlwaysStoppedAnimation<Color>(isOver ? progressRed : progressGreen), minHeight: 8)), const SizedBox(height: 10), FittedBox(fit: BoxFit.scaleDown, child: Text("${current.toInt()} / ${target.toInt()}g", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)))]));
+  }
+  Widget _buildWaterCard(double screenWidth, double currentWater, double targetWater, String uid, bool isHistory) {
+    double percent = (currentWater / targetWater).clamp(0.0, 1.0);
+    return Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: const Color(0xC32C2C2C), borderRadius: BorderRadius.circular(25)), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [const Icon(Icons.water_drop, color: Colors.blueAccent, size: 18), const SizedBox(width: 5), Text("Water Intake", style: TextStyle(fontSize: 14, color: Colors.grey[400]))]), const SizedBox(height: 10), TweenAnimationBuilder<double>(tween: Tween<double>(begin: 0, end: currentWater), duration: const Duration(seconds: 1), builder: (context, value, child) { return RichText(text: TextSpan(style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold), children: [TextSpan(text: "${value.toInt()} "), TextSpan(text: "/ ${targetWater.toInt()} ml", style: TextStyle(fontSize: 16, color: Colors.grey[500]))])); }), const SizedBox(height: 20), if (!isHistory) InkWell(onTap: () => _addWater(uid, currentWater.toInt()), borderRadius: BorderRadius.circular(30), child: Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), decoration: BoxDecoration(color: const Color(0xFF3E3E3E), borderRadius: BorderRadius.circular(30)), child: Row(mainAxisSize: MainAxisSize.min, children: const [Icon(Icons.add, color: Colors.white, size: 18), SizedBox(width: 5), Text("250 ml", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))])))])) , const SizedBox(width: 10), _buildVisualCup(percent)]));
+  }
+  Widget _buildVisualCup(double percent) { return SizedBox(width: 60, height: 90, child: Stack(alignment: Alignment.bottomCenter, children: [ClipPath(clipper: CupClipper(), child: Container(color: Colors.grey[800], alignment: Alignment.bottomCenter, child: FractionallySizedBox(heightFactor: percent, widthFactor: 1.0, child: Container(decoration: BoxDecoration(color: Colors.blueAccent, boxShadow: [BoxShadow(color: Colors.blueAccent.withOpacity(0.5), blurRadius: 10)]))))), ClipPath(clipper: CupClipper(), child: Container(decoration: BoxDecoration(border: Border.all(color: Colors.white.withOpacity(0.1), width: 1), gradient: LinearGradient(colors: [Colors.white.withOpacity(0.1), Colors.transparent], begin: Alignment.topLeft, end: Alignment.bottomRight))))])); }
+  Widget _buildMealTile(String title, String subtitle, String assetPath) { return Container(margin: const EdgeInsets.only(bottom: 15), padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: cardLight, borderRadius: BorderRadius.circular(25)), child: Row(children: [Container(width: 50, height: 50, decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle), padding: const EdgeInsets.all(8), child: Image.asset(assetPath, fit: BoxFit.contain, errorBuilder: (c,o,s) => const Icon(Icons.fastfood, color: Colors.orange))), const SizedBox(width: 15), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)), Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.black54), overflow: TextOverflow.ellipsis)])), InkWell(onTap: () => _openScanScreen(context, title), child: Container(width: 40, height: 40, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: const Icon(Icons.add, size: 24, color: Colors.black87)))])); }
 }
 
-// 📐 PAINTERS
-class GaugeChartPainter extends CustomPainter {
-  final double percent;
-  final Color progressColor;
-  final Color trackColor;
-  GaugeChartPainter({required this.percent, required this.progressColor, required this.trackColor});
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double startAngle = math.pi;
-    const double sweepAngle = math.pi;
-    final center = Offset(size.width / 2, size.height);
-    final radius = size.width / 2;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    final strokeWidth = 30.0;
-    final trackPaint = Paint()..color = trackColor..style = PaintingStyle.stroke..strokeWidth = strokeWidth..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, startAngle, sweepAngle, false, trackPaint);
-    final progressPaint = Paint()..color = progressColor..style = PaintingStyle.stroke..strokeWidth = strokeWidth..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, startAngle, sweepAngle * percent, false, progressPaint);
-  }
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class CupClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    Path path = Path();
-    path.moveTo(0, 0);
-    path.lineTo(size.width * 0.15, size.height);
-    path.lineTo(size.width * 0.85, size.height);
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
+class GaugeChartPainter extends CustomPainter { final double percent; final Color progressColor; final Color trackColor; GaugeChartPainter({required this.percent, required this.progressColor, required this.trackColor}); @override void paint(Canvas canvas, Size size) { const double startAngle = math.pi; const double sweepAngle = math.pi; final center = Offset(size.width / 2, size.height); final radius = size.width / 2; final rect = Rect.fromCircle(center: center, radius: radius); final strokeWidth = 30.0; final trackPaint = Paint()..color = trackColor..style = PaintingStyle.stroke..strokeWidth = strokeWidth..strokeCap = StrokeCap.round; canvas.drawArc(rect, startAngle, sweepAngle, false, trackPaint); final progressPaint = Paint()..color = progressColor..style = PaintingStyle.stroke..strokeWidth = strokeWidth..strokeCap = StrokeCap.round; canvas.drawArc(rect, startAngle, sweepAngle * percent, false, progressPaint); } @override bool shouldRepaint(covariant CustomPainter oldDelegate) => true; }
+class CupClipper extends CustomClipper<Path> { @override Path getClip(Size size) { Path path = Path(); path.moveTo(0, 0); path.lineTo(size.width * 0.15, size.height); path.lineTo(size.width * 0.85, size.height); path.lineTo(size.width, 0); path.close(); return path; } @override bool shouldReclip(CustomClipper<Path> oldClipper) => false; }
