@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart'; // 📦 The Package
+import '../services/database_service.dart';
 import 'tabs/home_tab.dart'; // Your actual Home Screen
 import 'tabs/history_tab.dart'; // (Uncomment when you have these)
 import 'tabs/profile_tab.dart'; // (Uncomment when you have these)
@@ -27,6 +28,10 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _repairUserDatabase(); // 🚑 Call the Doctor!
+    // 👇 ADD THIS LINE to run the midnight check on startup!
+    if (FirebaseAuth.instance.currentUser != null) {
+      DatabaseService().checkAndResetDailyStats(FirebaseAuth.instance.currentUser!.uid);
+    }
   }
 
   Future<void> _repairUserDatabase() async {
@@ -55,7 +60,7 @@ class _MainScreenState extends State<MainScreen> {
   // For tomorrow's demo, I put "Placeholder" widgets for History/Profile.
   // We will replace them with real screens later!
   static final List<Widget> _widgetOptions = <Widget>[
-    const HomeScreen(), // 🏠 1. The Real Home Screen
+    const HomeTab(), // 🏠 1. The Real Home Screen
     const HistoryTab(), // 📊 2. The Real History Screen
     const Center(child: Text("Search Screen (Coming Soon)", style: TextStyle(fontSize: 24, color: Colors.grey))), // 🔍 3. Dummy Search
     const ProfileTab(),
