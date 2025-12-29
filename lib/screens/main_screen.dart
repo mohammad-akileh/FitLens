@@ -184,7 +184,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
         backgroundColor: backgroundColor,
-        body: widgetOptions.elementAt(_selectedIndex),
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: widgetOptions,
+        ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: Colors.white,
