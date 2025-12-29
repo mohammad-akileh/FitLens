@@ -5,11 +5,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import '../services/api_service.dart'; // Ensure this is imported for Edit/Add features
-import 'main_screen.dart'; // Ensure this is imported for navigation
+import '../services/api_service.dart';
+import 'main_screen.dart';
 
 class MealHistoryDetailScreen extends StatefulWidget {
-  // We keep the constructor compatible with your App's flow
   final Map<String, dynamic>? mealData;
   final File? imageFile;
   final String? aiResponse;
@@ -30,7 +29,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   List<dynamic> _foodItems = [];
   bool _isLoading = false;
 
-  // Colors from your design
+  // Colors
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color cardBgColor = const Color(0xFFF6F5F0);
 
@@ -40,15 +39,11 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     _parseAndInitializeData();
   }
 
-  // 🧠 THE ROBUST PARSER (New Logic) + UUID GENERATION (Old Design Requirement)
   void _parseAndInitializeData() {
     List<dynamic> initialItems = [];
 
-    // 1. Determine Source (AI or History)
     if (widget.aiResponse != null) {
-      // --- SCAN MODE ---
       try {
-        print("RAW AI RESPONSE: ${widget.aiResponse}");
         String cleanJson = widget.aiResponse!
             .replaceAll('```json', '')
             .replaceAll('```', '')
@@ -67,23 +62,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         initialItems = [];
       }
     } else {
-      // --- HISTORY MODE ---
       initialItems = widget.mealData?['food_items'] ?? [];
     }
 
-    // 2. Prepare Items for the UI (Add UUIDs and Servings)
-    // We use 'user_serving' (double) to match your Old Design (0.5, 1.0, 1.5)
     List<dynamic> preparedItems = [];
     for (var item in initialItems) {
       Map<String, dynamic> newItem = Map.from(item);
 
-      // Default serving to 1.0 if missing
       if (newItem['user_serving'] == null) {
         newItem['user_serving'] =
             (newItem['user_serving_count'] ?? 1).toDouble();
       }
 
-      // Generate UUID for Dismissible if missing
       if (newItem['uuid'] == null) {
         newItem['uuid'] = DateTime.now().microsecondsSinceEpoch.toString() +
             "_" +
@@ -96,26 +86,25 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     setState(() => _foodItems = preparedItems);
   }
 
-  // --- 1. SERVING LOGIC (0.5 increments from Old Design) ---
+  // --- SERVING LOGIC ---
   void _updateServing(int index, double change) {
     setState(() {
       double current = (_foodItems[index]['user_serving'] ?? 1.0).toDouble();
       double newServing = current + change;
-      if (newServing < 0.5) newServing = 0.5; // Minimum 0.5 serving
+      if (newServing < 0.5) newServing = 0.5;
       _foodItems[index]['user_serving'] = newServing;
-      // Sync strictly for DB compatibility
       _foodItems[index]['user_serving_count'] = newServing;
     });
   }
 
-  // --- 2. EDIT EXISTING ITEM (Calls API) ---
+  // --- EDIT ITEM ---
   void _editItem(int index) {
     TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => _buildInputDialog(
         title: "Correct Item",
-        hint: "What is it actually? (e.g. 'Avocado Toast')",
+        hint: "What is it actually?",
         controller: controller,
         onConfirm: () async {
           Navigator.pop(context);
@@ -126,15 +115,13 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   }
 
   Future<void> _performCorrection(int index, String correction) async {
-    setState(() => _isLoading = true);
+    setState(() => _isLoading = true); // This triggers the generic loader
     try {
-      // We assume ApiService has correctScan. If not, this part will need adjustment.
       Map<String, dynamic> newResult = await ApiService().correctScan(
-          widget.imageFile, // Might be null in history mode, handled by API?
+          widget.imageFile,
           _foodItems[index]['food_name'] ?? "Food",
           correction);
 
-      // Preserve serving and UUID
       newResult['user_serving'] = _foodItems[index]['user_serving'] ?? 1.0;
       newResult['user_serving_count'] = newResult['user_serving'];
       newResult['uuid'] = _foodItems[index]['uuid'];
@@ -146,18 +133,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       _showSnack("Updated to $correction", Colors.green);
     } catch (e) {
       setState(() => _isLoading = false);
-      _showSnack("Failed to correct (AI unavailable): $e", Colors.red);
+      _showSnack("Failed to correct: $e", Colors.red);
     }
   }
 
-  // --- 3. ADD MISSING ITEM ---
+  // --- ADD MISSING ITEM ---
   void _addMissingItem() {
     TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => _buildInputDialog(
         title: "Add Missing Food",
-        hint: "What did we miss? (e.g. 'Diet Coke')",
+        hint: "What did we miss?",
         controller: controller,
         onConfirm: () async {
           Navigator.pop(context);
@@ -168,10 +155,10 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   }
 
   Future<void> _performAddItem(String name) async {
-    setState(() => _isLoading = true);
+    setState(() => _isLoading = true); // This triggers the generic loader
     try {
       Map<String, dynamic> newItem =
-          await ApiService().correctScan(widget.imageFile, "nothing", name);
+      await ApiService().correctScan(widget.imageFile, "nothing", name);
 
       newItem['user_serving'] = 1.0;
       newItem['user_serving_count'] = 1.0;
@@ -188,7 +175,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     }
   }
 
-  // --- 4. SWIPE TO DELETE (Undo Feature) ---
+  // --- DELETE ITEM ---
   void _deleteItem(int index) {
     final deletedItem = _foodItems[index];
     setState(() {
@@ -212,25 +199,25 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     );
   }
 
-  // --- 5. SAVE LOGIC (Connects to DatabaseService) ---
+  // --- SAVE MEAL (THE FIX 🛡️) ---
   void _saveMeal() async {
-    // 1. Validation (Keep existing logic)
+    // 1. Validation
     if (_foodItems.isEmpty) return;
 
-    // 🛑 NO setState. We show a Dialog instead.
+    // 🛑 NO setState here. We show a BEAUTIFUL Dialog instead.
 
-    // 2. 🎨 BEAUTIFUL UI DIALOG
+    // 2. 🎨 BEAUTIFUL UI DIALOG (The White Card)
     showDialog(
       context: context,
-      barrierDismissible: false, // User can't click away
+      barrierDismissible: false,
       builder: (context) => Dialog(
-        backgroundColor: Colors.transparent, // Makes corners see-through
+        backgroundColor: Colors.transparent,
         elevation: 0,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
           decoration: BoxDecoration(
-            color: Colors.white, // Clean background
-            borderRadius: BorderRadius.circular(20), // Soft corners
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.2),
@@ -240,17 +227,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
             ],
           ),
           child: const Column(
-            mainAxisSize: MainAxisSize.min, // Shrink to fit content
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Your App's Theme Green
+              // Beautiful Green Spinner
               CircularProgressIndicator(color: Color(0xFF5F7E5B)),
               SizedBox(height: 25),
+              // THE TEXT YOU WANTED
               Text(
                 "Saving your meal...",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87, // Dark Grey (Easy to read)
+                  color: Colors.black87,
                   decoration: TextDecoration.none,
                 ),
               ),
@@ -265,14 +253,12 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       if (uid != null) {
         String permanentUrl = "";
 
-        // 3. Image Upload Logic (Untouched)
         if (widget.imageFile != null) {
           permanentUrl = await DatabaseService().uploadImage(widget.imageFile!);
         } else {
           permanentUrl = widget.mealData?['image_url'] ?? "";
         }
 
-        // 4. Save to DB Logic (Untouched)
         await DatabaseService().saveMeal(
           uid: uid,
           foodItems: _foodItems,
@@ -281,22 +267,17 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
         );
 
         if (mounted) {
-          // Close the Loading Dialog
-          Navigator.pop(context);
-
+          Navigator.pop(context); // Close the Beautiful Dialog
           _showSnack("Meal saved!", Colors.green);
-
-          // Go back to Main Screen
           Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const MainScreen()),
-              (route) => false);
+                  (route) => false);
         }
       }
     } catch (e) {
       if (mounted) {
-        // If error, Close Dialog so user isn't stuck
-        Navigator.pop(context);
+        Navigator.pop(context); // Close Dialog if error
         _showSnack("Error: $e", Colors.red);
       }
     }
@@ -305,9 +286,9 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   // --- HELPERS ---
   Widget _buildInputDialog(
       {required String title,
-      required String hint,
-      required TextEditingController controller,
-      required VoidCallback onConfirm}) {
+        required String hint,
+        required TextEditingController controller,
+        required VoidCallback onConfirm}) {
     return AlertDialog(
       title: Text(title),
       content: TextField(
@@ -322,7 +303,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
             onPressed: onConfirm,
             style: ElevatedButton.styleFrom(backgroundColor: mainTextColor),
             child:
-                const Text("Confirm", style: TextStyle(color: Colors.white))),
+            const Text("Confirm", style: TextStyle(color: Colors.white))),
       ],
     );
   }
@@ -334,7 +315,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine Image to show
     Widget imageWidget;
     if (widget.imageFile != null) {
       imageWidget = Image.file(widget.imageFile!, fit: BoxFit.cover);
@@ -346,9 +326,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     }
 
     return Stack(
-      // 👈 1. USE STACK
       children: [
-        // 2. THE MAIN CONTENT (Your existing Scaffold)
+        // 1. MAIN UI
         Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
@@ -359,21 +338,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
               iconTheme: const IconThemeData(color: Colors.black)),
           body: Column(
             children: [
-              // Image
               Container(
                   height: 200,
                   width: double.infinity,
                   color: Colors.grey[200],
                   child: imageWidget),
 
-              // List
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _foodItems.length + 1,
                   itemBuilder: (context, index) {
                     if (index == _foodItems.length) {
-                      // Add Button
                       return Padding(
                         padding: const EdgeInsets.only(top: 10, bottom: 30),
                         child: TextButton.icon(
@@ -388,7 +364,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                         ),
                       );
                     }
-                    // Food Card (Existing logic)
                     final item = _foodItems[index];
                     final key = Key(item['uuid'] ?? "key_$index");
                     return Dismissible(
@@ -411,7 +386,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                 ),
               ),
 
-              // Save Button
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: SizedBox(
@@ -435,21 +409,18 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
           ),
         ),
 
-        // 3. THE GLASS LOADER OVERLAY 🕵️‍♂️
-        // 3. THE BEAUTIFUL GLASS LOADER ✨
+        // 2. GENERIC LOADER (For Editing only)
+        // I CHANGED THE TEXT HERE SO "CONSULTING AI" IS GONE FOREVER 🚫
         if (_isLoading)
           Positioned.fill(
-            // Covers the whole screen
             child: Stack(
               children: [
-                // A. Blur Effect
                 BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
                   child: Container(
-                    color: Colors.black.withOpacity(0.3), // Dark tint
+                    color: Colors.black.withOpacity(0.3),
                   ),
                 ),
-                // B. The Card
                 Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -468,18 +439,13 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const CircularProgressIndicator(
-                            color: Color(0xFF5F7E5B)), // Main Green
+                            color: Color(0xFF5F7E5B)),
                         const SizedBox(height: 20),
+                        // 👇 TEXT CHANGED! "AI" IS GONE!
                         const Text(
-                          "Consulting AI Chef... 👨‍🍳",
+                          "Processing Data...",
                           style: TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          "Analyzing nutrition data",
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
@@ -494,7 +460,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
 
   Widget _buildFoodCard(Map<String, dynamic> item, int index) {
     double servingFactor = (item['user_serving'] ?? 1.0).toDouble();
-
     num baseCals = item['calories_per_serving'] ?? 0;
     num baseProt = item['protein_per_serving'] ?? 0;
     num baseCarbs = item['carbs_per_serving'] ?? 0;
@@ -514,12 +479,10 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // LEFT: Name & Controls (Expanded takes all remaining space)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Name + Edit Pencil
                     Row(
                       children: [
                         Flexible(
@@ -539,8 +502,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
-                    // Compact Counter
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
@@ -548,7 +509,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border:
-                              Border.all(color: Colors.grey.withOpacity(0.3))),
+                          Border.all(color: Colors.grey.withOpacity(0.3))),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -571,10 +532,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                   ],
                 ),
               ),
-
-              const SizedBox(width: 8), // Small gap between left and right
-
-              // RIGHT: Calories (Now Constrained!)
+              const SizedBox(width: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 90),
                 child: Column(
@@ -589,14 +547,13 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                       textAlign: TextAlign.end,
                     ),
                     const SizedBox(height: 5),
-                    // This text caused the overflow. Now it will wrap safely.
                     Text(
                       "per ${item['serving_unit'] ?? 'srv'}",
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                       textAlign: TextAlign.end,
-                      maxLines: 2, // Allow it to wrap to 2 lines
+                      maxLines: 2,
                       overflow:
-                          TextOverflow.ellipsis, // Add "..." if still too long
+                      TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -605,7 +562,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
           ),
           const SizedBox(height: 12),
           Divider(color: Colors.grey[300]),
-          // MACROS
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [

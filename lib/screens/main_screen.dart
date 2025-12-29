@@ -142,6 +142,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
       HistoryTab(
         currentDate: _globalDate,
+        onDateChanged: _updateDate, // 👈 ADD THIS LINE
       ),
       const Center(child: Text("Search Screen (Coming Soon)", style: TextStyle(fontSize: 24, color: Colors.grey))),
       const ProfileTab(),
