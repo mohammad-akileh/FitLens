@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:math' as math;
 
 import '../../services/database_service.dart';
@@ -47,6 +48,20 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _setupMidnightTimer();
+
+    // 👇 ADD THIS LINE: Ask for permission immediately when Home loads!
+    _requestPermission();
+  }
+
+  // 👇 ADD THIS FUNCTION
+  Future<void> _requestPermission() async {
+    // This connects to the Android-specific notification plugin
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+    FlutterLocalNotificationsPlugin().resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    // This pops up the system dialog "Allow FitLens to send notifications?"
+    await androidImplementation?.requestNotificationsPermission();
   }
 
   @override
@@ -276,6 +291,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
         : (data['current_fat'] ?? 0).toDouble();
 
     return Scaffold(
+
       body: Stack(
         children: [
           Container(
