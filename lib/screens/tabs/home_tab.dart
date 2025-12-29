@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
 import '../../services/database_service.dart';
+import '../../services/notification_service.dart'; // 🔔 1. IMPORT THIS!
 import '../scan_screen.dart';
 import '../profile/profile_screen.dart';
 import '../meal_history_detail_screen.dart';
@@ -27,6 +28,12 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final DatabaseService _dbService = DatabaseService();
   Timer? _midnightTimer;
+
+  // 🔔 2. ADD THESE FLAGS (To stop notification spam)
+  bool _alertCals = false;
+  bool _alertCarbs = false;
+  bool _alertFat = false;
+  bool _alertProt = false;
 
   // Colors
   final Color cardDark = const Color(0xB34A5F48);
@@ -63,12 +70,22 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
 
     _midnightTimer = Timer(timeUntilMidnight, () {
       print("🕛 Midnight Timer Triggered!");
+
+      // Reset Alert Flags for the new day
+      setState(() {
+        _alertCals = false;
+        _alertCarbs = false;
+        _alertFat = false;
+        _alertProt = false;
+      });
+
       _dbService.checkAndResetDailyStats(_auth.currentUser!.uid);
       widget.onDateChanged(DateTime.now());
       _setupMidnightTimer();
     });
   }
 
+  // ... (Keep _pickDate and _addWater exactly as they were) ...
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -90,7 +107,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     }
   }
 
-  // 💧 SMART WATER LOGIC
   Future<void> _addWater(String uid, Map<String, dynamic> data) async {
     if (!_isToday) return;
 
@@ -98,7 +114,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     if (dbDate != todayStr) {
-      // Reset if date is old
       await _dbService.checkAndResetDailyStats(uid);
       await _db.collection('users').doc(uid).update({
         'current_water': 250,
@@ -110,7 +125,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
         'app_secret': 'FitLens_VIP_2025',
       });
     } else {
-      // Normal Add
       int currentWater = (data['current_water'] ?? 0).toInt();
       await _db.collection('users').doc(uid).update({
         'current_water': currentWater + 250,
@@ -127,6 +141,43 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
             builder: (context) => ScanScreen(mealType: mealType)));
   }
 
+  // 🔔 3. NEW HELPER FUNCTION: CHECK LIMITS
+  void _checkExceededLimits(Map<String, dynamic> data) {
+    double tCal = (data['target_calories'] ?? 2000).toDouble();
+    double cCal = (data['current_calories'] ?? 0).toDouble();
+    double tFat = (data['target_fat'] ?? 65).toDouble();
+    double cFat = (data['current_fat'] ?? 0).toDouble();
+    double tProt = (data['target_protein'] ?? 150).toDouble();
+    double cProt = (data['current_protein'] ?? 0).toDouble();
+    double tCarb = (data['target_carbs'] ?? 250).toDouble();
+    double cCarb = (data['current_carbs'] ?? 0).toDouble();
+
+    // Check Calories
+    if (cCal > tCal && !_alertCals) {
+      NotificationService.showWarning(
+          "⚠️ Limit Reached!", "You've exceeded your daily calories.");
+      _alertCals = true; // Set flag so we don't notify again this session
+    }
+    // Check Fat
+    if (cFat > tFat && !_alertFat) {
+      NotificationService.showWarning(
+          "⚠️ Fat Limit Reached", "Watch your intake for the rest of the day.");
+      _alertFat = true;
+    }
+    // Check Carbs
+    if (cCarb > tCarb && !_alertCarbs) {
+      NotificationService.showWarning(
+          "⚠️ Carb Limit Reached", "You hit your carb limit.");
+      _alertCarbs = true;
+    }
+    // Check Protein (Optional, usually exceeding protein is fine, but as requested)
+    if (cProt > tProt && !_alertProt) {
+      NotificationService.showWarning(
+          "💪 Protein Goal Hit!", "Great job hitting your protein target.");
+      _alertProt = true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = _auth.currentUser;
@@ -141,7 +192,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                 body: Center(child: CircularProgressIndicator()));
           var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-          // 🛡️ STALE DATA GUARD (Visual Reset)
           String dbDate = data['last_active_date'] ?? "";
           String todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
@@ -156,10 +206,17 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
             };
           }
 
+          // 🔔 4. CALL THE CHECK HERE!
+          // We wrap it in addPostFrameCallback to avoid errors during build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkExceededLimits(data);
+          });
+
           return _buildDesignLayout(data, isHistory: false);
         },
       );
     } else {
+      // ... (Keep History FutureBuilder exactly the same) ...
       return FutureBuilder<Map<String, dynamic>?>(
         key: ValueKey(widget.currentDate.toString()),
         future: _dbService.getHistoryForDate(user.uid, widget.currentDate),
@@ -183,6 +240,8 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     }
   }
 
+  // ... (The rest of your UI widgets: _buildDesignLayout, _buildHeader, etc. remain EXACTLY the same) ...
+  // ... Paste the rest of your file here ...
   Widget _buildDesignLayout(Map<String, dynamic> data,
       {required bool isHistory}) {
     final Size screenSize = MediaQuery.of(context).size;

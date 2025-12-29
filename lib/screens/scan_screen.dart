@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../screens/meal_history_detail_screen.dart'; // This import works now!
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 class ScanScreen extends StatefulWidget {
   final String mealType;
@@ -35,9 +36,17 @@ class _ScanScreenState extends State<ScanScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
-
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+  }
   // 2. Analyze & Navigate
   Future<void> _analyzeMeal() async {
+    bool result = await InternetConnection().hasInternetAccess;
+    if (!result) {
+      _showSnack("No Internet! Please check your connection.", Colors.red);
+      return; // 🛑 Stop right here. Don't crash.
+    }
     if (_imageFile == null) return;
 
     setState(() => _isLoading = true);

@@ -118,7 +118,13 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
-    await _auth.signOut();
+    try {
+      // 1. Disconnect Google (Forces account picker next time)
+      await _googleSignIn.signOut();
+      // 2. Sign out of Firebase
+      await _auth.signOut();
+    } catch (e) {
+      print("Error signing out: $e");
+    }
   }
 }

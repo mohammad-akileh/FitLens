@@ -1,13 +1,14 @@
 // lib/screens/main_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitlens/screens/tabs/recipes_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import '../services/database_service.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/history_tab.dart';
-import 'tabs/profile_tab.dart';
+import 'tabs/settings_tab.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -144,8 +145,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         currentDate: _globalDate,
         onDateChanged: _updateDate, // 👈 ADD THIS LINE
       ),
-      const Center(child: Text("Search Screen (Coming Soon)", style: TextStyle(fontSize: 24, color: Colors.grey))),
-      const ProfileTab(),
+      const RecipesTab(),
+      const SettingsTab(),
     ];
 
     // 🛡️ POP SCOPE
@@ -205,7 +206,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 tabs: const [
                   GButton(icon: Icons.home_rounded, text: 'Home'),
                   GButton(icon: Icons.history_rounded, text: 'History'),
-                  GButton(icon: Icons.search_rounded, text: 'Search'),
+                  GButton(icon: Icons.receipt_long_sharp, text: 'Recipes'),
                   GButton(icon: Icons.person_rounded, text: 'Profile'),
                 ],
                 selectedIndex: _selectedIndex,
