@@ -6,14 +6,12 @@ import '../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   SignUpScreen({super.key});
-
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final AuthService _authService = AuthService();
-
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -32,10 +30,55 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  // --- 🛡️ PROFESSIONAL EMAIL VALIDATOR ---
+  String? _validateEmailSpecifics(String email) {
+    if (email.isEmpty) return "Email address is required.";
+    if (email.contains(' ')) return "Email address cannot contain spaces.";
+
+    // 1. Check for '@'
+    if (!email.contains('@')) return "Invalid format: Missing '@' symbol.";
+
+    // Split into Local (before @) and Domain (after @)
+    final parts = email.split('@');
+    if (parts.length > 2) return "Invalid format: Multiple '@' symbols found.";
+
+    final localPart = parts[0];
+    final domainPart = parts.length > 1 ? parts[1] : "";
+
+    // 2. Check Local Part
+    if (localPart.isEmpty) return "Invalid format: Username before '@' is missing.";
+
+    // 3. Check Domain Part
+    if (domainPart.isEmpty) return "Invalid format: Domain after '@' is missing.";
+
+    // 4. Check for dot '.' in domain
+    if (!domainPart.contains('.')) return "Invalid domain: Missing a dot ('.') separator.";
+
+    // 5. Check TLD (The part after the last dot, e.g., 'com', 'org', 'duck')
+    final domainSegments = domainPart.split('.');
+    final tld = domainSegments.last;
+    if (tld.isEmpty || tld.length < 2) {
+      return "Invalid domain: Top-level domain (e.g., .com) is incomplete.";
+    }
+
+    // 6. Final Regex Check for weird characters
+    // Allows alphanumeric, dots, underscores, hyphens.
+    // Example: user.name@domain-name.co.uk is valid.
+    final RegExp emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9-]+\.[a-zA-Z]+",
+    );
+    if (!emailRegex.hasMatch(email)) {
+      return "Invalid email format. Please check for special characters.";
+    }
+
+    return null; // No error
+  }
+
   void _signUp() async {
     setState(() { _isLoading = true; });
 
     final String name = _nameController.text.trim();
+    final String email = _emailController.text.trim();
     final String password = _passwordController.text.trim();
 
     // 1. Validate Name
@@ -45,29 +88,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // --- 2. THE NEW STRONG PASSWORD GATEKEEPER ---
-    // Rules: At least 8 chars, 1 Uppercase, 1 Number, 1 Symbol
-    // Explanation of Regex:
-    // (?=.*[A-Z]) -> Must contain an Uppercase
-    // (?=.*[0-9]) -> Must contain a Number
-    // (?=.*[!@#\$&*~]) -> Must contain a Symbol
-    // .{8,}       -> Must be at least 8 chars long
+    // 2. 🛡️ NEW EMAIL CHECK
+    String? emailError = _validateEmailSpecifics(email);
+    if (emailError != null) {
+      _showErrorSnackBar(emailError);
+      setState(() { _isLoading = false; });
+      return; // Stop here
+    }
 
+    // 3. Password Check
     RegExp strongPasswordRegex = RegExp(r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$&*~]).{8,}$');
-
     if (!strongPasswordRegex.hasMatch(password)) {
       _showErrorSnackBar("Password must be 8+ chars, with 1 Uppercase, 1 Number & 1 Symbol (!@#\$&*)");
       setState(() { _isLoading = false; });
-      return; // STOP HERE! Don't send to Firebase.
+      return;
     }
-    // ---------------------------------------------
 
     try {
-      await _authService.signUpWithEmail(
-        name,
-        _emailController.text.trim(),
-        password,
-      );
+      await _authService.signUpWithEmail(name, email, password);
 
       setState(() { _isLoading = false; });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,7 +148,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               _buildModernTextField(
                 controller: _nameController,
-                hint: "First Name",
+                hint: "Name",
                 icon: Icons.person_outline,
                 formatter: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]'))],
               ),

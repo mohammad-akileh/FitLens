@@ -23,7 +23,7 @@ class IntroScreen extends StatelessWidget {
           Container(
             height: double.infinity,
             width: double.infinity,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/intro_back.jpg'),
                 fit: BoxFit.cover,
@@ -40,7 +40,6 @@ class IntroScreen extends StatelessWidget {
               child: IconButton(
                 icon: Icon(Icons.arrow_back, color: mainTextColor),
                 onPressed: () async {
-                  // Just sign out. AuthGate will handle the rest!
                   await FirebaseAuth.instance.signOut();
                 },
               ),
@@ -55,72 +54,76 @@ class IntroScreen extends StatelessWidget {
               height: screenHeight * 0.45,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.85),
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(40),
                   topRight: Radius.circular(40),
                 ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(30, 40, 30, 30),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Track Your Nutrition,\nTransform Your\nHealth",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: mainTextColor,
-                        height: 1.5,
-                        fontFamily: 'serif',
+              // ✅ FIX: "SafeArea" ensures content isn't covered by the home button
+              child: SafeArea(
+                top: false, // We don't worry about the top notch here
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(30, 40, 30, 30),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Track Your Nutrition,\nTransform Your\nHealth",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: mainTextColor,
+                          height: 1.5,
+                          fontFamily: 'serif',
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 15),
-                    Text(
-                      "Stay healthy by tracking every meal.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: mainTextColor.withOpacity(0.8),
-                        fontWeight: FontWeight.w500,
+                      const SizedBox(height: 15),
+                      Text(
+                        "Stay healthy by tracking every meal.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: mainTextColor.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    Spacer(),
+                      const Spacer(),
 
-                    // --- CORRECTED BUTTON ---
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OnboardingGenderScreen(),
+                      // --- BUTTON ---
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const OnboardingGenderScreen(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: buttonColor,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: buttonColor, // <-- #DFE2D1 (Light Sage)
-                          foregroundColor: Colors.black, // <-- Black text to pop out
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                            elevation: 0,
                           ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          "Continue",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          child: const Text(
+                            "Continue",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    // ------------------------
-                  ],
+                      // ------------------------
+                    ],
+                  ),
                 ),
               ),
             ),

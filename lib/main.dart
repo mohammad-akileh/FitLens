@@ -3,6 +3,8 @@ import 'package:fitlens/services/notification_service.dart';
 import 'package:flutter/material.dart';
 //import 'package:firebase_core/firebase_core.dart';
 import 'screens/splash_screen_video.dart';
+import 'package:provider/provider.dart'; // 1. Import Provider
+import 'services/theme_provider.dart';   // 2. Import your new ThemeProvider
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,18 +26,42 @@ void main() async {
       3, "Daily Recap 🌙", "Check your calories for the day.", 20);
 
   // 3. Run App (Splash Screen handles Firebase)
-  runApp(const MyApp());
+  runApp(
+    // 3. WRAP THE APP IN PROVIDER
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: const FitLensApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class FitLensApp extends StatelessWidget {
+  const FitLensApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    // 4. LISTEN TO THEME CHANGES
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'FitLens', // We can set the name here
-      home: SplashScreen(),
+      title: 'FitLens',
+
+      // 5. SET UP THEMES
+      themeMode: themeProvider.themeMode, // Switches automatically!
+      theme: ThemeData(
+        brightness: Brightness.light,
+        primarySwatch: Colors.green,
+        scaffoldBackgroundColor: const Color(0xFFF6F5F0),
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.green,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        // Define dark mode colors here if you want specifics
+      ),
+
+      home: const SplashScreen(), // Splash Screen handles Firebase
     );
   }
 }

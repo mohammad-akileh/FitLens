@@ -4,9 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for direct updates
 import 'package:intl/intl.dart'; // 📦 Run 'flutter pub add intl' if missing!
 
+import '../../auth_gate.dart';
 import '../../services/database_service.dart';
 import '../../utils/calculator.dart';
-import '../main_screen.dart';
+//import '../main_screen.dart';
 import '../../widgets/onboarding_card.dart';
 
 class OnboardingFinalResultScreen extends StatefulWidget {
@@ -146,7 +147,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const MainScreen()),
+          MaterialPageRoute(builder: (context) =>  AuthGate()),
               (route) => false,
         );
       }

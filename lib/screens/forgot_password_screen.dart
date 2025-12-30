@@ -5,7 +5,6 @@ import '../services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
-
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
@@ -16,9 +15,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _isLoading = false;
 
   // --- YOUR NEW COLORS ---
-  final Color mainTextColor = const Color(0xFF5F7E5B); // Deep Sage
-  final Color buttonColor = const Color(0xFFF6F5F0);   // Cream
-  final Color screenBgColor = const Color(0xFFDFE2D1); // Light Sage
+  final Color mainTextColor = const Color(0xFF5F7E5B);
+  final Color buttonColor = const Color(0xFFF6F5F0);
+  final Color screenBgColor = const Color(0xFFDFE2D1);
 
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -29,12 +28,58 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
+  // --- 🛡️ PROFESSIONAL EMAIL VALIDATOR ---
+  String? _validateEmailSpecifics(String email) {
+    if (email.isEmpty) return "Email address is required.";
+    if (email.contains(' ')) return "Email address cannot contain spaces.";
+
+    // 1. Check for '@'
+    if (!email.contains('@')) return "Invalid format: Missing '@' symbol.";
+
+    // Split into Local (before @) and Domain (after @)
+    final parts = email.split('@');
+    if (parts.length > 2) return "Invalid format: Multiple '@' symbols found.";
+
+    final localPart = parts[0];
+    final domainPart = parts.length > 1 ? parts[1] : "";
+
+    // 2. Check Local Part
+    if (localPart.isEmpty) return "Invalid format: Username before '@' is missing.";
+
+    // 3. Check Domain Part
+    if (domainPart.isEmpty) return "Invalid format: Domain after '@' is missing.";
+
+    // 4. Check for dot '.' in domain
+    if (!domainPart.contains('.')) return "Invalid domain: Missing a dot ('.') separator.";
+
+    // 5. Check TLD (The part after the last dot)
+    final domainSegments = domainPart.split('.');
+    final tld = domainSegments.last;
+    if (tld.isEmpty || tld.length < 2) {
+      return "Invalid domain: Top-level domain (e.g., .com) is incomplete.";
+    }
+
+    // 6. Final Regex Check
+    final RegExp emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9-]+\.[a-zA-Z]+",
+    );
+    if (!emailRegex.hasMatch(email)) {
+      return "Invalid email format. Please check for special characters.";
+    }
+
+    return null; // No error
+  }
+
   void _sendResetLink() async {
-    if (_emailController.text.isEmpty) {
-      _showSnackBar("Please enter your email address.", isError: true);
+    setState(() { _isLoading = true; });
+
+    // 1. 🛡️ VALIDATE EMAIL FIRST
+    String? emailError = _validateEmailSpecifics(_emailController.text.trim());
+    if (emailError != null) {
+      _showSnackBar(emailError, isError: true);
+      setState(() { _isLoading = false; });
       return;
     }
-    setState(() { _isLoading = true; });
 
     try {
       await _authService.sendPasswordResetEmail(_emailController.text.trim());
@@ -51,12 +96,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: screenBgColor, // Solid Color Background
+      backgroundColor: screenBgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: mainTextColor), // Green Back Arrow
+          icon: Icon(Icons.arrow_back_ios, color: mainTextColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -85,7 +130,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               SizedBox(height: 40),
 
-              // Email Field (New Style)
+              // Email Field
               TextField(
                 controller: _emailController,
                 style: TextStyle(color: mainTextColor),
@@ -110,17 +155,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
               SizedBox(height: 30),
 
-              // Send Button (New Style)
+              // Send Button
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
                   onPressed: _sendResetLink,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF8B8BAE), // Matching your theme (Purple/Grey)
-                    // OR use buttonColor if you prefer Cream:
-                    // backgroundColor: buttonColor,
-                    // foregroundColor: mainTextColor,
+                    backgroundColor: Color(0xFF8B8BAE),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
@@ -133,7 +175,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white, // White text for darker button
+                      color: Colors.white,
                     ),
                   ),
                 ),

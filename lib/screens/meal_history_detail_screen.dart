@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../auth_gate.dart';
 import '../services/database_service.dart';
 import '../services/api_service.dart';
-import 'main_screen.dart';
+//import 'main_screen.dart';
 
 class MealHistoryDetailScreen extends StatefulWidget {
   final Map<String, dynamic>? mealData;
@@ -271,7 +272,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
           _showSnack("Meal saved!", Colors.green);
           Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (context) => const MainScreen()),
+              MaterialPageRoute(builder: (context) =>  AuthGate()),
                   (route) => false);
         }
       }

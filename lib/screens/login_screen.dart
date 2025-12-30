@@ -6,7 +6,7 @@ import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  LoginScreen({super.key});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,14 +17,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  // Loading state for Email login
   bool _isLoading = false;
+  // Loading state for Google login
+  bool _isGoogleLoading = false;
+
   bool _isPasswordObscured = true;
   bool _rememberMe = true;
-
-  // --- YOUR NEW COLORS ---
-  final Color mainTextColor = const Color(0xFF5F7E5B); // Deep Sage
-  final Color buttonColor = const Color(0xFFF6F5F0);   // Cream
-  final Color screenBgColor = const Color(0xFFDFE2D1); // Light Sage
+  // Colors
+  final Color mainTextColor = const Color(0xFF5F7E5B);
+  final Color buttonColor = const Color(0xFFF6F5F0);
+  final Color screenBgColor = const Color(0xFFDFE2D1);
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -32,19 +35,70 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // --- 🛡️ PROFESSIONAL EMAIL VALIDATOR ---
+  String? _validateEmailSpecifics(String email) {
+    if (email.isEmpty) return "Email address is required.";
+    if (email.contains(' ')) return "Email address cannot contain spaces.";
+
+    // 1. Check for '@'
+    if (!email.contains('@')) return "Invalid format: Missing '@' symbol.";
+
+    // Split into Local (before @) and Domain (after @)
+    final parts = email.split('@');
+    if (parts.length > 2) return "Invalid format: Multiple '@' symbols found.";
+
+    final localPart = parts[0];
+    final domainPart = parts.length > 1 ? parts[1] : "";
+
+    // 2. Check Local Part
+    if (localPart.isEmpty) return "Invalid format: Username before '@' is missing.";
+
+    // 3. Check Domain Part
+    if (domainPart.isEmpty) return "Invalid format: Domain after '@' is missing.";
+
+    // 4. Check for dot '.' in domain
+    if (!domainPart.contains('.')) return "Invalid domain: Missing a dot ('.') separator.";
+
+    // 5. Check TLD (The part after the last dot)
+    final domainSegments = domainPart.split('.');
+    final tld = domainSegments.last;
+    if (tld.isEmpty || tld.length < 2) {
+      return "Invalid domain: Top-level domain (e.g., .com) is incomplete.";
+    }
+
+    // 6. Final Regex Check
+    final RegExp emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9-]+\.[a-zA-Z]+",
+    );
+    if (!emailRegex.hasMatch(email)) {
+      return "Invalid email format. Please check for special characters.";
+    }
+
+    return null; // No error
+  }
+
+  // --- Email Login Logic ---
   void _login() async {
     setState(() { _isLoading = true; });
+
+    // 1. 🛡️ VALIDATE EMAIL FIRST
+    String? emailError = _validateEmailSpecifics(_emailController.text.trim());
+    if (emailError != null) {
+      _showErrorSnackBar(emailError);
+      setState(() { _isLoading = false; });
+      return;
+    }
+
     try {
       await _authService.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+      // AuthGate handles navigation. Just stop spinner if still mounted.
       if (mounted) setState(() { _isLoading = false; });
     } on FirebaseAuthException catch (e) {
-      setState(() { _isLoading = false; });
-
+      if (mounted) setState(() { _isLoading = false; });
       String errorMessage;
-      // Check for the new generic error code 'invalid-credential'
       if (e.code == 'invalid-credential' || e.code == 'user-not-found' || e.code == 'wrong-password') {
         errorMessage = "Incorrect email or password.";
       } else if (e.code == 'email-not-verified') {
@@ -56,16 +110,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _loginWithGoogle() async {
-    setState(() { _isLoading = true; });
+  // --- Google Login Logic ---
+  void _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
     try {
-      await _authService.signInWithGoogle();
-      if (mounted) setState(() { _isLoading = false; });
-    } on FirebaseAuthException catch (e) {
-      setState(() { _isLoading = false; });
-      _showErrorSnackBar(e.message ?? "An error occurred.");
+      await AuthService().signInWithGoogle();
+      // AuthGate handles navigation.
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+        _showErrorSnackBar("Google Login Failed: ${e.toString()}");
+      }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -84,21 +142,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: mainTextColor),
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Center(
                 child: Text(
                   "Ready to continue your health journey?",
                   style: TextStyle(fontSize: 14, color: mainTextColor.withOpacity(0.8)),
                 ),
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
 
               _buildModernTextField(
                 controller: _emailController,
                 hint: "Enter email",
                 icon: Icons.email_outlined,
               ),
-              SizedBox(height: 15),
+              const SizedBox(height: 15),
 
               _buildModernTextField(
                 controller: _passwordController,
@@ -127,40 +185,40 @@ class _LoginScreenState extends State<LoginScreen> {
                           onChanged: (val) => setState(() => _rememberMe = val!),
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text("Remember me", style: TextStyle(fontSize: 13, color: mainTextColor)),
                     ],
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => ForgotPasswordScreen()));
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()));
                     },
                     child: Text("Forgot password?", style: TextStyle(fontSize: 13, color: mainTextColor, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
 
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-              // Login Button
+              // Login Button (Email)
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor, // #F6F5F0
-                    foregroundColor: mainTextColor, // #5F7E5B
+                    backgroundColor: buttonColor,
+                    foregroundColor: mainTextColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     elevation: 2,
                   ),
                   child: _isLoading
                       ? CircularProgressIndicator(color: mainTextColor)
-                      : Text("Log In", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      : const Text("Log In", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
 
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
 
               // Divider
               Row(
@@ -174,12 +232,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
 
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-              // Google Button
-              Center(child: _buildSocialButton(onPressed: _loginWithGoogle, assetName: 'assets/google_icon.png')),
+              // --- Google Button ---
+              Center(
+                child: _isGoogleLoading
+                    ? const CircularProgressIndicator()
+                    : _buildSocialButton(
+                    onPressed: _handleGoogleSignIn,
+                    assetName: 'assets/google_icon.png'
+                ),
+              ),
 
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
 
               // Sign Up Link
               Row(
@@ -211,15 +276,15 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextField(
       controller: controller,
       obscureText: isObscured,
-      style: TextStyle(color: mainTextColor), // Input text color
+      style: TextStyle(color: mainTextColor),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: mainTextColor.withOpacity(0.6), fontSize: 14), // Hint color
-        prefixIcon: Icon(icon, color: mainTextColor, size: 20), // Icon color
+        hintStyle: TextStyle(color: mainTextColor.withOpacity(0.6), fontSize: 14),
+        prefixIcon: Icon(icon, color: mainTextColor, size: 20),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(vertical: 18),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: BorderSide.none,
@@ -236,11 +301,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return InkWell(
       onTap: onPressed,
       child: Container(
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 5))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
         ),
         child: Image.asset(assetName, height: 30, width: 30),
       ),

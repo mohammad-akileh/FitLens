@@ -1,4 +1,4 @@
-// lib/screens/profile/old_profile_screen.dart
+// lib/screens/profile/profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -293,7 +293,7 @@ extension StringExtension on String {
 }
 
 // ---------------------------------------------------------
-// 🛠️ EDITABLE PERSONAL DETAILS SCREEN (Keep as is)
+// 🛠️ EDITABLE PERSONAL DETAILS SCREEN
 // ---------------------------------------------------------
 class PersonalDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -368,6 +368,15 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       double newHeight = double.tryParse(_heightController.text.replaceAll(',', '.')) ?? 0.0;
       String newActivity = _selectedActivityLevel ?? "Moderate";
 
+      // 🛡️ SECURITY CHECK: LOGIC VALIDATION
+      // Prevent "2222222" or negative numbers
+      if (newWeight < 20 || newWeight > 500) {
+        throw "Weight must be between 20kg and 500kg.";
+      }
+      if (newHeight < 50 || newHeight > 300) {
+        throw "Height must be between 50cm and 300cm.";
+      }
+
       int age = widget.data['age'] ?? 20;
       String gender = widget.data['gender'] ?? 'male';
       String goalStr = widget.data['goal'] ?? 'Maintain';
@@ -423,7 +432,13 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        // ⚠️ THIS WILL SHOW THE RED SNACKBAR IF VALIDATION FAILS
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(e.toString().replaceAll("Exception:", "")),
+                backgroundColor: Colors.red
+            )
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
