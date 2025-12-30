@@ -24,7 +24,7 @@ class Recipe {
     required this.ingredients,
   });
 
-  // Convert to Map (for saving to phone)
+  // 1. Convert to Map (For SharedPreferences AND Firebase)
   Map<String, dynamic> toJson() => {
     'label': title,
     'image': imageUrl,
@@ -36,12 +36,12 @@ class Recipe {
     'ingredientLines': ingredients,
   };
 
-  // Create from Map (loading from phone)
+  // 2. Create from Map (For Loading from Phone/DB)
   factory Recipe.fromJson(Map<String, dynamic> json) {
     return Recipe(
       title: json['label'] ?? "Unknown Meal",
       imageUrl: json['image'] ?? "https://via.placeholder.com/150",
-      calories: (json['calories'] as num).toInt(),
+      calories: (json['calories'] as num?)?.toInt() ?? 0,
       protein: (json['protein'] as num?)?.toInt() ?? 0,
       carbs: (json['carbs'] as num?)?.toInt() ?? 0,
       fat: (json['fat'] as num?)?.toInt() ?? 0,
@@ -50,13 +50,13 @@ class Recipe {
     );
   }
 
-  // Create from API (Edamam format is slightly different)
+  // 3. Create from Edamam API (V2 structure)
   factory Recipe.fromEdamam(Map<String, dynamic> json) {
     final nutrients = json['totalNutrients'];
     return Recipe(
       title: json['label'] ?? "Unknown Meal",
       imageUrl: json['image'] ?? "https://via.placeholder.com/150",
-      calories: (json['calories'] as num).toInt(),
+      calories: (json['calories'] as num?)?.toInt() ?? 0,
       protein: (nutrients['PROCNT']?['quantity'] as num? ?? 0).toInt(),
       fat: (nutrients['FAT']?['quantity'] as num? ?? 0).toInt(),
       carbs: (nutrients['CHOCDF']?['quantity'] as num? ?? 0).toInt(),
@@ -67,20 +67,19 @@ class Recipe {
 }
 
 class RecipeService {
-  // 🔑 YOUR KEYS FROM THE SCREENSHOT
   static const String _appId = "538a4d05";
   static const String _appKey = "d95387336370474ae20c002554dce446";
-  static const String _baseUrl = "https://api.edamam.com/search";
+  static const String _baseUrl = "https://api.edamam.com/api/recipes/v2";
 
-  // 🦅 THE SMART LOGIC
+  // ✅ UPDATED: Now accepts (and checks) the targetCalories dynamically
   static Future<List<Recipe>> getSmartRecommendations(int targetCalories) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Check if we already have recipes for THIS calorie target
+    // 1. Check Cache
     int? cachedTarget = prefs.getInt('cached_target_calories');
     String? cachedData = prefs.getString('cached_recipes');
 
-    // Logic: If target hasn't changed much (within 50kcal) AND we have data -> USE CACHE
+    // Logic: If target hasn't changed much (within 50kcal) -> USE CACHE
     if (cachedData != null && cachedTarget != null) {
       if ((targetCalories - cachedTarget).abs() < 50) {
         print("💾 Loading from Cache (Zero API Hits)");
@@ -89,17 +88,19 @@ class RecipeService {
       }
     }
 
-    // 2. If Cache is invalid, HIT THE API 🌍
+    // 2. Else -> HIT API
     return _fetchFromApi(targetCalories, prefs);
   }
 
   static Future<List<Recipe>> _fetchFromApi(int target, SharedPreferences prefs) async {
-    // Safety buffer
+    // Safety buffer (prevent searching for 0 calories)
     int safeTarget = target < 300 ? 500 : target;
 
     try {
+      // ✅ FIX 1: Added 'to=50' to get MORE recipes
+      // ✅ FIX 2: Added 'random=true' for variety
       final url = Uri.parse(
-          "$_baseUrl?q=healthy&app_id=$_appId&app_key=$_appKey&to=20&calories=0-$safeTarget"
+          "$_baseUrl?type=public&q=healthy&app_id=$_appId&app_key=$_appKey&calories=0-$safeTarget&to=50&random=true"
       );
 
       print("🦅 Calling Edamam API (1 Hit used)...");
@@ -116,7 +117,7 @@ class RecipeService {
         // 💾 SAVE TO CACHE
         String encoded = json.encode(recipes.map((r) => r.toJson()).toList());
         await prefs.setString('cached_recipes', encoded);
-        await prefs.setInt('cached_target_calories', target); // Remember this target
+        await prefs.setInt('cached_target_calories', target);
 
         return recipes;
       } else {
@@ -129,7 +130,7 @@ class RecipeService {
     }
   }
 
-  // 🛡️ BACKUP LIST (Safety Net)
+  // 🛡️ BACKUP
   static final List<Recipe> _backupRecipes = [
     Recipe(
       title: "Classic Hummus Plate",

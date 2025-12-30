@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/recipe_service.dart';
-import '../recipe_detail_screen.dart'; // Import the new screen
+import '../../services/favorites_service.dart'; // Import your favorites service
+import '../favorites_screen.dart';
+import '../recipe_detail_screen.dart';
 
 class RecipesTab extends StatefulWidget {
   const RecipesTab({super.key});
@@ -13,11 +15,13 @@ class RecipesTab extends StatefulWidget {
 
 class _RecipesTabState extends State<RecipesTab> {
   final User? user = FirebaseAuth.instance.currentUser;
+
   Future<List<Recipe>>? _recommendationsFuture;
+  int? _lastFetchedTarget; // ✅ Tracks when to refresh dynamic data
 
   // 🔍 Search Logic
   String _searchQuery = "";
-  List<Recipe> _allRecipes = []; // Stores the full list from API
+  List<Recipe> _allRecipes = [];
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +31,15 @@ class _RecipesTabState extends State<RecipesTab> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text("Chef's Suggestions 👨‍🍳", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite, color: Colors.red),
+            onPressed: () {
+              // Navigate to the new Favorites Screen
+              Navigator.push(context, MaterialPageRoute(builder: (c) => const FavoritesScreen()));
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
@@ -38,12 +51,17 @@ class _RecipesTabState extends State<RecipesTab> {
           int current = (data['current_calories'] ?? 0).toInt();
           int remaining = target - current;
 
-          // Fetch only if not initialized
-          _recommendationsFuture ??= RecipeService.getSmartRecommendations(remaining);
+          // ✅ DYNAMIC REFRESH LOGIC
+          // If we haven't fetched yet, OR if the target changed by >50 calories
+          if (_lastFetchedTarget == null || (remaining - _lastFetchedTarget!).abs() > 50) {
+            print("🔄 Targets changed! Refreshing recipes...");
+            _lastFetchedTarget = remaining;
+            _recommendationsFuture = RecipeService.getSmartRecommendations(remaining);
+          }
 
           return Column(
             children: [
-              // 1. 🔍 SEARCH BAR (Filters local list)
+              // 1. 🔍 SEARCH BAR
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: TextField(
@@ -71,7 +89,6 @@ class _RecipesTabState extends State<RecipesTab> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    // Save full list for searching
                     if (recipeSnap.hasData) {
                       _allRecipes = recipeSnap.data!;
                     }
@@ -82,7 +99,7 @@ class _RecipesTabState extends State<RecipesTab> {
                     ).toList();
 
                     if (displayList.isEmpty) {
-                      return const Center(child: Text("No recipes found matching your search."));
+                      return const Center(child: Text("No recipes found."));
                     }
 
                     return ListView.builder(
@@ -104,7 +121,6 @@ class _RecipesTabState extends State<RecipesTab> {
 
   Widget _buildRecipeCard(Recipe recipe, BuildContext context) {
     return GestureDetector(
-      // 👇 ON TAP: OPEN DETAILS
       onTap: () {
         Navigator.push(context, MaterialPageRoute(builder: (c) => RecipeDetailScreen(recipe: recipe)));
       },
@@ -117,10 +133,22 @@ class _RecipesTabState extends State<RecipesTab> {
         ),
         child: Column(
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              child: Image.network(recipe.imageUrl, height: 150, width: double.infinity, fit: BoxFit.cover),
+            // ✅ IMAGE + FAVORITE BUTTON STACK
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: Image.network(recipe.imageUrl, height: 150, width: double.infinity, fit: BoxFit.cover),
+                ),
+                // ❤️ The Favorite Button (Bottom Right of Image)
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: FavoriteButton(recipe: recipe), // Separate widget to prevent lag
+                )
+              ],
             ),
+
             Padding(
               padding: const EdgeInsets.all(15),
               child: Column(
@@ -130,9 +158,9 @@ class _RecipesTabState extends State<RecipesTab> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
-                      Text(" ${recipe.calories} kcal  ", style: TextStyle(fontWeight: FontWeight.bold)),
-                      Icon(Icons.fitness_center, size: 16, color: Colors.blue),
+                      const Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                      Text(" ${recipe.calories} kcal  ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const Icon(Icons.fitness_center, size: 16, color: Colors.blue),
                       Text(" ${recipe.protein}g P"),
                     ],
                   )
@@ -141,6 +169,56 @@ class _RecipesTabState extends State<RecipesTab> {
             )
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ✅ NEW WIDGET: Handles the star logic independently
+class FavoriteButton extends StatefulWidget {
+  final Recipe recipe;
+  const FavoriteButton({super.key, required this.recipe});
+
+  @override
+  State<FavoriteButton> createState() => _FavoriteButtonState();
+}
+
+class _FavoriteButtonState extends State<FavoriteButton> {
+  bool isFav = false;
+  final FavoritesService _favService = FavoritesService();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFav();
+  }
+
+  void _checkFav() async {
+    bool fav = await _favService.isFavorite(widget.recipe.title);
+    if (mounted) setState(() => isFav = fav);
+  }
+
+  void _toggleFav() async {
+    setState(() => isFav = !isFav); // Instant UI update
+    if (isFav) {
+      await _favService.addFavorite(widget.recipe);
+    } else {
+      await _favService.removeFavorite(widget.recipe.title);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      backgroundColor: Colors.white,
+      radius: 18,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(
+          isFav ? Icons.star : Icons.star_border,
+          color: isFav ? Colors.red : Colors.grey,
+        ),
+        onPressed: _toggleFav,
       ),
     );
   }
