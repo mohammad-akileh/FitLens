@@ -1,3 +1,4 @@
+// lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,7 +10,7 @@ class AuthService {
 
   Stream<User?> get user => _auth.authStateChanges();
 
-  // --- SIGN UP WITH EMAIL (Keep as is) ---
+  // --- SIGN UP WITH EMAIL ---
   Future<void> signUpWithEmail(String name, String email, String password) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -32,7 +33,7 @@ class AuthService {
     }
   }
 
-  // --- SIGN IN WITH EMAIL (Keep as is) ---
+  // --- SIGN IN WITH EMAIL ---
   Future<UserCredential?> signInWithEmail(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -52,31 +53,24 @@ class AuthService {
     }
   }
 
-  // --- 🔴 UPDATED SELF-HEALING GOOGLE SIGN IN ---
+  // --- GOOGLE SIGN IN (Self-Healing) ---
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // 1. Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // User canceled
+      if (googleUser == null) return null;
 
-      // 2. Obtain the auth details
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // 3. Sign in to Firebase
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
       final User? user = userCredential.user;
 
-      // 4. 🛡️ SELF-HEALING DATABASE LOGIC
-      // Instead of relying on "isNewUser", we explicitly check the database.
       if (user != null) {
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
-
         if (!userDoc.exists) {
-          // If the document is missing (because internet failed last time), create it now!
           await _firestore.collection('users').doc(user.uid).set({
             'name': user.displayName ?? 'Google User',
             'email': user.email,
@@ -106,6 +100,33 @@ class AuthService {
       await _auth.signOut();
     } catch (e) {
       print("Error signing out: $e");
+    }
+  }
+
+  // --- 🔴 DELETE ACCOUNT (Fixes the Google Loop) ---
+  Future<void> deleteAccount() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        // 1. Delete Firestore Data
+        await _firestore.collection('users').doc(user.uid).delete();
+
+        // 2. Disconnect Google
+        // This is the MAGIC LINE. It forces the account picker to appear next time.
+        try {
+          await _googleSignIn.disconnect();
+        } catch (e) {
+          print("Google disconnect warning: $e");
+        }
+
+        // 3. Delete Auth Account
+        await user.delete();
+      }
+    } on FirebaseAuthException catch (e) {
+      // If error is "requires-recent-login", the UI needs to handle it
+      throw e;
+    } catch (e) {
+      throw e;
     }
   }
 
