@@ -66,38 +66,44 @@ class _SettingsScreenState extends State<SettingsTab> {
   }
 
   // --- 🔗 SMART SHARE FUNCTION (With Password & Internet Check) ---
+// --- 🔗 FIXED SMART SHARE FUNCTION ---
   Future<void> _shareApp() async {
     String message = 'Check out FitLens! It counts calories from photos instantly using AI.';
 
-    // 1. Check Internet First
+    // 1. Check Internet
     bool hasNet = await _hasInternet();
-
     if (!hasNet) {
-      // 🛑 NO INTERNET: Share generic message immediately (Don't make user wait)
       Share.share(message);
       return;
     }
 
     try {
-      // 2. 🟢 SEND THE PASSWORD IN THE QUERY
-      // We look for the document where 'app_secret' matches your VIP password
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      // 2. DIRECT FETCH (This fixes the Permission Denied error)
+      // We ask for the specific file 'general'.
+      // Firestore will only give it to us if the 'app_secret' inside matches your Rule.
+      DocumentSnapshot doc = await FirebaseFirestore.instance
           .collection('app_config')
-          .where('app_secret', isEqualTo: 'FitLens_VIP_2025') // <--- THE PASSWORD IS HERE
-          .limit(1)
+          .doc('general')
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        String link = (snapshot.docs.first.data() as Map<String, dynamic>)['app_link'] ?? "";
-        if (link.isNotEmpty) {
-          message += "\n\n$link";
+      if (doc.exists && doc.data() != null) {
+        // Safe cast to Map
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+        // 3. Double Check the Password locally (Optional, but safe)
+        if (data['app_secret'] == 'FitLens_VIP_2025') {
+          String link = data['app_link'] ?? "";
+          if (link.isNotEmpty) {
+            message += "\n\n$link";
+          }
         }
       }
 
       Share.share(message);
 
     } catch (e) {
-      // If DB fails, just share the text
+      // Debug info: print(e);
+      // If permission denied or empty, just share text
       Share.share(message);
     }
   }

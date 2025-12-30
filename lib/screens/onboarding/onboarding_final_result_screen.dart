@@ -1,14 +1,10 @@
-// lib/screens/onboarding/onboarding_final_result_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for direct updates
-import 'package:intl/intl.dart'; // 📦 Run 'flutter pub add intl' if missing!
-
-import '../../auth_gate.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import '../../utils/calculator.dart';
-//import '../main_screen.dart';
-import '../../widgets/onboarding_card.dart';
+import '../../auth_gate.dart';
+// Note: We don't need to import onboarding_card.dart here since we aren't using the big wrapper
 
 class OnboardingFinalResultScreen extends StatefulWidget {
   final String gender;
@@ -18,6 +14,8 @@ class OnboardingFinalResultScreen extends StatefulWidget {
   final double heightVal;
   final String heightUnit;
   final String goal;
+
+  // New Params
   final String mealFrequency;
   final String weekendHabit;
   final String weekendDays;
@@ -41,120 +39,106 @@ class OnboardingFinalResultScreen extends StatefulWidget {
 }
 
 class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScreen> {
-  final Color mainTextColor = const Color(0xFF5F7E5B);
-  final Color buttonColor = const Color(0xFFDFE2D1);
-  final Color inactiveBarColor = Colors.grey[300]!;
-
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isLoading = false;
+
+  final Color primaryGreen = const Color(0xFF5F7E5B);
+  final Color bgCream = const Color(0xFFF6F5F0);
+
+  int _targetCalories = 0;
+  int _targetProtein = 0;
+  int _targetCarbs = 0;
+  int _targetFat = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateValues();
+  }
+
+  void _calculateValues() {
+    // 1. Convert to Metric
+    double weightKg = widget.weightUnit.toLowerCase() == 'kg'
+        ? widget.weightVal
+        : widget.weightVal * 0.453592;
+
+    double heightCm = widget.heightUnit.toLowerCase() == 'cm'
+        ? widget.heightVal
+        : widget.heightVal * 30.48;
+
+    // 2. Calculate BMR
+    double bmr = Calculator.calculateBMR(
+      isMale: widget.gender == 'Male',
+      weightKg: weightKg,
+      heightCm: heightCm,
+      age: widget.age,
+    );
+
+    // 3. Default Activity (1.375)
+    double activityMultiplier = 1.375;
+
+    double tdee = bmr * activityMultiplier;
+    double adjusted = tdee;
+
+    if (widget.goal == "Lose Weight") adjusted -= 500;
+    if (widget.goal == "Gain Muscle") adjusted += 500;
+
+    _targetCalories = adjusted.round();
+    _targetProtein = ((_targetCalories * 0.30) / 4).round();
+    _targetCarbs = ((_targetCalories * 0.35) / 4).round();
+    _targetFat = ((_targetCalories * 0.35) / 9).round();
+  }
 
   Future<void> _finishAndSave() async {
     setState(() => _isLoading = true);
     try {
-      final User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final String uid = user.uid;
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Prepare metric values for saving
+        double weightKg = widget.weightUnit.toLowerCase() == 'kg'
+            ? widget.weightVal
+            : widget.weightVal * 0.453592;
 
-      // 1. Convert units for math (Metric is standard for formulas)
-      int weightKg = widget.weightUnit == 'kg'
-          ? widget.weightVal.round()
-          : (widget.weightVal / 2.20462).round();
+        double heightCm = widget.heightUnit.toLowerCase() == 'cm'
+            ? widget.heightVal
+            : widget.heightVal * 30.48;
 
-      int heightCm = widget.heightUnit == 'cm'
-          ? widget.heightVal.round()
-          : (widget.heightVal * 2.54).round();
+        // Save to Firestore
+        await _firestore.collection('users').doc(user.uid).update({
+          'gender': widget.gender,
+          'age': widget.age,
+          'weight': weightKg,
+          'height': heightCm,
+          'goal': widget.goal,
+          'activity_level': 1.375,
 
-      // 2. Calculate BMR
-      double bmr = Calculator.calculateBMR(
-        gender: widget.gender,
-        weightKg: weightKg,
-        heightCm: heightCm,
-        age: widget.age,
-      );
+          'meal_frequency': widget.mealFrequency,
+          'weekend_habit': widget.weekendHabit,
+          'weekend_days': widget.weekendDays,
 
-      // 3. Activity Level (Default Moderate)
-      double activityMultiplier = 1.375;
+          'target_calories': _targetCalories,
+          'target_protein': _targetProtein,
+          'target_carbs': _targetCarbs,
+          'target_fat': _targetFat,
 
-      // 4. Calculate Total Daily Calories
-      double targetCalories = Calculator.calculateTargetCalories(
-          bmr,
-          activityMultiplier: activityMultiplier
-      );
+          'onboarding_completed': true,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
 
-      // 5. Calculate Macros
-      String macroGoal = 'maintain';
-      if (widget.goal.toLowerCase().contains('gain')) macroGoal = 'muscle';
-      if (widget.goal.toLowerCase().contains('lose')) macroGoal = 'loss';
+        await DatabaseService().updateWaterIntake(user.uid, 0);
+      }
 
-      Map<String, double> macros = Calculator.calculateMacros(
-          targetCalories,
-          goal: macroGoal
-      );
-
-      // 6. Calculate Water
-      double waterLiter = Calculator.calculateWater(
-        weightKg: weightKg,
-        exerciseHours: 0.5,
-      );
-
-      // 7. Pack Targets for Database
-      Map<String, int> dailyGoals = {
-        'calories': targetCalories.round(),
-        'protein': macros['protein']!.round(),
-        'carb': macros['carb']!.round(),
-        'fat': macros['fat']!.round(),
-        'water': (waterLiter * 1000).round(),
-      };
-
-      // 8. Save Profile Logic
-      // This saves the "Static" info (Age, Gender, Targets)
-      await DatabaseService().saveUserProfile(
-        uid: uid,
-        gender: widget.gender,
-        age: widget.age,
-        weight: widget.weightVal,
-        weightUnit: widget.weightUnit,
-        height: widget.heightVal,
-        heightUnit: widget.heightUnit,
-        goal: widget.goal,
-        // Passing these habits to save them, even if DatabaseService doesn't explicitly name them,
-        // we will ensure they are saved in the extra update below just in case.
-        dailyGoals: dailyGoals,
-      );
-
-      // 9. 🛡️ THE SAFETY LOCK (Force Clean Database Structure)
-      // This ensures the Home Screen has exactly what it needs to start.
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'onboarding_completed': true,
-        'app_secret': 'FitLens_VIP_2025',
-
-        // 📅 THE ANCHOR: Set "Last Active" to TODAY
-        'last_active_date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-
-        // ⚡ LIVE COUNTERS: Start at 0
-        'current_calories': 0,
-        'current_protein': 0,
-        'current_carbs': 0,
-        'current_fat': 0,
-        'current_water': 0,
-
-        // Habits (Saving them here to be 100% sure they exist)
-        'meal_frequency': widget.mealFrequency,
-        'weekend_habit': widget.weekendHabit,
-        'weekend_days': widget.weekendDays,
-      }, SetOptions(merge: true)); // Merge so we don't delete what saveUserProfile just saved
-
-      // 10. Navigate to Main Screen
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) =>  AuthGate()),
+          MaterialPageRoute(builder: (context) => AuthGate()),
               (route) => false,
         );
       }
     } catch (e) {
-      print("Error saving profile: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -164,128 +148,104 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/intro_back.jpg'),
-                fit: BoxFit.cover,
+      backgroundColor: bgCream,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              const Text("Your Personal Plan", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF5F7E5B))),
+              const SizedBox(height: 10),
+              const Text("Based on your details, here is your daily target:", style: TextStyle(fontSize: 16, color: Colors.grey)),
+              const SizedBox(height: 30),
+
+              // Calorie Bubble
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+                ),
+                child: Column(
+                  children: [
+                    Text("$_targetCalories", style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: primaryGreen)),
+                    const Text("kcal / day", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  ],
+                ),
               ),
-            ),
-          ),
+              const SizedBox(height: 30),
 
-          Positioned(
-            top: 50,
-            left: 20,
-            child: CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.8),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back, color: mainTextColor),
-                onPressed: () => Navigator.pop(context),
+              // --- 🛡️ FIXED: USING NEW MacroCard WIDGET INSTEAD OF OnboardingCard ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  MacroCard(title: "Protein", value: "${_targetProtein}g", icon: Icons.fitness_center),
+                  MacroCard(title: "Carbs", value: "${_targetCarbs}g", icon: Icons.rice_bowl),
+                  MacroCard(title: "Fats", value: "${_targetFat}g", icon: Icons.opacity),
+                ],
               ),
-            ),
-          ),
 
-          OnboardingCard(
-            child: Column(
-              children: [
-                const Text(
-                  "We'll tailor your plan!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  "Based on your habits, here is how we structure your week.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 40),
+              const Spacer(),
 
-                _buildDynamicChart(),
-
-                const SizedBox(height: 40),
-
-                const Text(
-                  "Your calorie budget will be flexibly adjusted for weekends so you can enjoy them guilt-free!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
-                ),
-
-                const SizedBox(height: 40),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _finishAndSave,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: buttonColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      elevation: 2,
-                    ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.black)
-                        : const Text("Finish Setup", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              // Finish Button
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _finishAndSave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 5,
                   ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Start My Journey", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildDynamicChart() {
-    bool friHigh = widget.weekendDays.contains("Fridays");
-    bool satHigh = widget.weekendDays.contains("Saturdays");
-    bool sunHigh = widget.weekendDays.contains("Sundays");
+// --- 🟢 NEW LOCAL WIDGET FOR MACROS ---
+// This replaces the incorrect use of OnboardingCard
+class MacroCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
 
+  const MacroCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: 180,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      width: 100,
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+      ),
+      child: Column(
         children: [
-          _buildSingleBar("M", 0.6, false),
-          _buildSingleBar("T", 0.6, false),
-          _buildSingleBar("W", 0.6, false),
-          _buildSingleBar("T", 0.6, false),
-          _buildSingleBar("F", friHigh ? 0.9 : 0.6, friHigh),
-          _buildSingleBar("S", satHigh ? 1.0 : 0.6, satHigh),
-          _buildSingleBar("S", sunHigh ? 1.0 : 0.6, sunHigh),
+          Icon(icon, color: const Color(0xFF5F7E5B), size: 28),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
         ],
       ),
-    );
-  }
-
-  Widget _buildSingleBar(String day, double heightFactor, bool isHighlight) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          height: 120 * heightFactor,
-          width: 20,
-          decoration: BoxDecoration(
-            color: isHighlight ? mainTextColor : inactiveBarColor,
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          day,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isHighlight ? mainTextColor : Colors.grey,
-          ),
-        ),
-      ],
     );
   }
 }

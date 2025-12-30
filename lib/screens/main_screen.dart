@@ -188,24 +188,54 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           index: _selectedIndex,
           children: widgetOptions,
         ),
+        // inside main_screen.dart
+
+        // inside lib/screens/main_screen.dart
+
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [BoxShadow(blurRadius: 20, color: Colors.black.withOpacity(.1))],
+            // 🔴 FIX 1: Change specific color to Dynamic Logic
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1E1E) // Dark Grey for Dark Mode
+                : Colors.white,           // White for Light Mode
+
+            boxShadow: [
+              BoxShadow(
+                  blurRadius: 20,
+                  color: Colors.black.withOpacity(.1)
+              )
+            ],
           ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8),
               child: GNav(
-                rippleColor: Colors.grey[300]!,
-                hoverColor: Colors.grey[100]!,
+                // 🔴 FIX 2: Change Ripple to Dynamic
+                rippleColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]!
+                    : Colors.grey[300]!,
+
+                // 🔴 FIX 3: Change Hover to Dynamic
+                hoverColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[900]!
+                    : Colors.grey[100]!,
+
                 gap: 8,
-                activeColor: activeColor,
+                activeColor: const Color(0xFF5F7E5B), // Primary Green
                 iconSize: 24,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 duration: const Duration(milliseconds: 400),
-                tabBackgroundColor: tabBackgroundColor,
-                color: iconColor,
+
+                // 🔴 FIX 4: Change Tab Background (Bubble) to Dynamic
+                tabBackgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF5F7E5B).withOpacity(0.2)
+                    : const Color(0xFF5F7E5B).withOpacity(0.1),
+
+                // 🔴 FIX 5: Change Icon Color (Inactive) to Dynamic
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[400]
+                    : Colors.black54,
+
                 tabs: const [
                   GButton(icon: Icons.home_rounded, text: 'Home'),
                   GButton(icon: Icons.history_rounded, text: 'History'),

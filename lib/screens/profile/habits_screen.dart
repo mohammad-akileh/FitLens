@@ -1,3 +1,4 @@
+// lib/screens/profile/habits_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -26,16 +27,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
     setState(() => _isSaving = true);
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
-      
-      // 1. Get Weight for the math
-      int weight = (widget.data['weight'] ?? 70).toInt();
+
+      // 1. Get Weight (FIX: Cast to double, not int)
+      double weight = (widget.data['weight'] ?? 70.0).toDouble();
 
       // 2. 🧠 Recalculate Water based on NEW Habits
       // We divide weekly hours by 7 to get "Daily Average Exercise" for the formula
       double dailyExercise = _exerciseHours / 7;
+
       double newWater = Calculator.calculateWater(
-        weightKg: weight,
-        exerciseHours: dailyExercise
+          weightKg: weight, // Now passing double
+          exerciseHours: dailyExercise
       );
 
       // 3. Save to DB
@@ -85,9 +87,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
               const Text("Weekly Exercise", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 5),
               Text("Hours per week: ${_exerciseHours.toStringAsFixed(1)} h", style: const TextStyle(color: Colors.grey)),
-              
+
               const SizedBox(height: 20),
-              
+
               // SLIDER
               Slider(
                 value: _exerciseHours,
@@ -98,7 +100,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 label: "${_exerciseHours} h",
                 onChanged: (val) => setState(() => _exerciseHours = val),
               ),
-              
+
               const SizedBox(height: 10),
               const Text("⚠️ Increasing exercise will increase your daily water recommendation.", style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
             ],

@@ -1,7 +1,7 @@
-// lib/screens/onboarding/onboarding_weight_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_ruler_picker/flutter_ruler_picker.dart';
 import '../../widgets/onboarding_card.dart';
-import 'onboarding_height_screen.dart'; // <-- POINTS TO HEIGHT
+import 'onboarding_height_screen.dart';
 
 class OnboardingWeightScreen extends StatefulWidget {
   final String gender;
@@ -16,33 +16,43 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color buttonColor = const Color(0xFFDFE2D1);
 
+  RulerPickerController? _rulerPickerController;
   bool _isKg = true;
   double _currentWeightVal = 60.0;
-  final double _itemWidth = 10.0;
-  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToValue(_currentWeightVal));
+    _rulerPickerController = RulerPickerController(value: _currentWeightVal);
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  double get _minWeight => _isKg ? 30.0 : 66.0;
-  double get _maxWeight => _isKg ? 200.0 : 440.0;
-  int get _totalTicks => (_maxWeight - _minWeight).round();
-
-  void _jumpToValue(double val) {
-    double offset = (val - _minWeight) * _itemWidth;
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(offset);
+  // --- VALIDATION ---
+  void _nextPage() {
+    bool isValid = true;
+    if (_isKg) {
+      if (_currentWeightVal < 30 || _currentWeightVal > 300) isValid = false;
+    } else {
+      if (_currentWeightVal < 66 || _currentWeightVal > 660) isValid = false;
     }
+
+    if (!isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter a valid weight (${_isKg ? '30-300 kg' : '66-660 lbs'})"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OnboardingHeightScreen(
+          gender: widget.gender,
+          age: widget.age,
+          weightVal: _currentWeightVal,
+          weightUnit: _isKg ? 'kg' : 'lbs',
+        ),
+      ),
+    );
   }
 
   void _toggleUnit(bool makingKg) {
@@ -50,25 +60,27 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
     setState(() {
       _isKg = makingKg;
       if (_isKg) {
-        _currentWeightVal = _currentWeightVal / 2.20462;
+        _currentWeightVal = _currentWeightVal * 0.453592; // Lbs -> Kg
       } else {
-        _currentWeightVal = _currentWeightVal * 2.20462;
+        _currentWeightVal = _currentWeightVal * 2.20462; // Kg -> Lbs
       }
-      _currentWeightVal = _currentWeightVal.clamp(_minWeight, _maxWeight);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToValue(_currentWeightVal));
+    // Update ruler position safely
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_rulerPickerController != null) {
+        _rulerPickerController!.value = _currentWeightVal;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final double horizontalPadding = screenWidth / 2 - _itemWidth / 2;
-
     return Scaffold(
+      backgroundColor: const Color(0xFFDFE2D1),
       body: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/intro_back.jpg'),
                 fit: BoxFit.cover,
@@ -86,14 +98,16 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
               ),
             ),
           ),
+
           OnboardingCard(
             child: Column(
+              mainAxisSize: MainAxisSize.min, // shrink to fit children
               children: [
-                Text(
+                const Text(
                   "What's your weight?",
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 15),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
@@ -107,12 +121,12 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
                     ],
                   ),
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 20),
                 RichText(
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: _currentWeightVal.toStringAsFixed(0),
+                        text: _currentWeightVal.toStringAsFixed(1),
                         style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: mainTextColor),
                       ),
                       TextSpan(
@@ -122,91 +136,46 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
                     ],
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
+
+                // --- FIXED: SizedBox instead of Expanded & .toDouble() ---
                 SizedBox(
-                  height: 100,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      NotificationListener<ScrollNotification>(
-                        onNotification: (scrollInfo) {
-                          if (scrollInfo is ScrollUpdateNotification) {
-                            setState(() {
-                              _currentWeightVal = _minWeight + (scrollInfo.metrics.pixels / _itemWidth);
-                              _currentWeightVal = _currentWeightVal.clamp(_minWeight, _maxWeight);
-                            });
-                          }
-                          return true;
-                        },
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          scrollDirection: Axis.horizontal,
-                          physics: BouncingScrollPhysics(),
-                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                          itemCount: _totalTicks + 1,
-                          itemBuilder: (context, index) {
-                            int value = _minWeight.round() + index;
-                            bool isMajor = value % 10 == 0;
-                            bool isMedium = value % 5 == 0 && !isMajor;
-                            double tickHeight = isMajor ? 50.0 : (isMedium ? 35.0 : 20.0);
-                            double tickThickness = isMajor ? 2.5 : 1.5;
-                            return Container(
-                              width: _itemWidth,
-                              alignment: Alignment.bottomCenter,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  if (isMajor)
-                                    Text(
-                                      "$value",
-                                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                                    ),
-                                  SizedBox(height: 5),
-                                  Container(
-                                    height: tickHeight,
-                                    width: tickThickness,
-                                    color: Colors.grey[400],
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      Container(
-                        height: 75,
-                        width: 4,
-                        decoration: BoxDecoration(color: mainTextColor, borderRadius: BorderRadius.circular(2)),
-                      ),
+                  height: 150,
+                  width: double.infinity,
+                  child: RulerPicker(
+                    controller: _rulerPickerController!,
+                    onBuildRulerScaleText: (index, value) => value.toInt().toString(),
+                    ranges: const [
+                      RulerRange(begin: 0, end: 700, scale: 1),
                     ],
+                    scaleLineStyleList: const [
+                      ScaleLineStyle(color: Colors.grey, width: 1.5, height: 30, scale: 0),
+                      ScaleLineStyle(color: Colors.grey, width: 1, height: 15, scale: 5),
+                      ScaleLineStyle(color: Colors.grey, width: 1, height: 15, scale: -1),
+                    ],
+                    // 🛡️ FIX HERE: Cast 'num' to 'double'
+                    onValueChanged: (value) {
+                      setState(() => _currentWeightVal = value.toDouble());
+                    },
+                    width: MediaQuery.of(context).size.width,
+                    height: 150,
+                    rulerMarginTop: 8,
                   ),
                 ),
-                SizedBox(height: 40),
+
+                const SizedBox(height: 30),
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // --- NAVIGATE TO HEIGHT SCREEN ---
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OnboardingHeightScreen(
-                            gender: widget.gender,
-                            age: widget.age,
-                            weightVal: _currentWeightVal,
-                            weightUnit: _isKg ? 'kg' : 'lbs',
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: _nextPage,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: buttonColor,
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       elevation: 2,
                     ),
-                    child: Text("Continue", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: const Text("Continue", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -221,11 +190,11 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
         decoration: BoxDecoration(
           color: isActive ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(25),
-          boxShadow: isActive ? [BoxShadow(color: Colors.black12, blurRadius: 5)] : [],
+          boxShadow: isActive ? [const BoxShadow(color: Colors.black12, blurRadius: 5)] : [],
         ),
         child: Text(
           text,

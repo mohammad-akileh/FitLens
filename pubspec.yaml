@@ -39,6 +39,7 @@ dependencies:
   font_awesome_flutter: ^10.12.0
   share_plus: ^12.0.1
   package_info_plus: ^9.0.0
+  flutter_ruler_picker: ^1.0.6
   # ------------------------------------------
 
 dev_dependencies:

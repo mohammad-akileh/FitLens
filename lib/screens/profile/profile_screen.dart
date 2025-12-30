@@ -25,11 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // 🚑 SILENT AUTO-REPAIR: Check DB on load
     _ensureDatabaseExists();
   }
 
-  // 🕵️‍♂️ The Silent Repair Doctor
   Future<void> _ensureDatabaseExists() async {
     User? user = _auth.currentUser;
     if (user == null) return;
@@ -38,12 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      print("🚑 DB missing. Auto-creating for ${user.email}...");
       await docRef.set({
         'email': user.email,
         'first_name': user.displayName ?? 'Besti',
         'created_at': FieldValue.serverTimestamp(),
-        // Default Safety Values so app doesn't crash
         'target_calories': 2000,
         'target_protein': 150,
         'target_carbs': 250,
@@ -51,12 +47,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'target_water': 2500,
         'app_secret': 'FitLens_VIP_2025',
       }, SetOptions(merge: true));
-      // Force refresh UI
       if (mounted) setState(() {});
     }
   }
 
-  // 📸 FUNCTION: Pick and Upload Image
   Future<void> _uploadProfilePicture() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -68,43 +62,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       String uid = _auth.currentUser!.uid;
       File file = File(image.path);
-
-      // 1. Create Reference
       Reference ref = _storage.ref().child('profile_pics/$uid.jpg');
-
-      // 2. 🔐 ADD THE PASSWORD METADATA
       SettableMetadata metadata = SettableMetadata(
-          contentType: 'image/jpeg', // ℹ️ Helps browser/console view it correctly
+          contentType: 'image/jpeg',
           customMetadata: {'app_secret': 'FitLens_VIP_2025'}
       );
 
-      // 3. Upload with Metadata
       UploadTask task = ref.putFile(file, metadata);
-
-      // Wait for upload...
       TaskSnapshot snapshot = await task;
       String downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // 4. Save URL to Firestore
       await _db.collection('users').doc(uid).update({
         'photo_url': downloadUrl,
         'app_secret': 'FitLens_VIP_2025',
       });
 
-      // 5. Update Local Auth
       await _auth.currentUser?.updatePhotoURL(downloadUrl);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile picture updated! 📸"), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile picture updated! 📸"), backgroundColor: Colors.green),
+        );
+      }
 
     } catch (e) {
-      print("Upload Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -129,24 +117,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         stream: _db.collection('users').doc(user.uid).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const Center(child: Text("Something went wrong"));
-
-          // Show loading only if we have NO data yet
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
-          // Data Extraction
           final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-          // 1. NAME FIX
           String name = data['first_name'] ?? user.displayName ?? 'User';
-
           final int age = data['age'] ?? 0;
           final String? photoUrl = data['photo_url'];
 
-          // 2. NUMBER FIX
-          final double weight = (data['weight'] ?? 0.0).toDouble();
-          final String displayWeight = weight.toStringAsFixed(1);
+          // --- INTELLIGENT UNIT DISPLAY ---
+          final double rawWeight = (data['weight'] ?? 0.0).toDouble();
+          final String unitPref = data['weight_unit'] ?? 'kg';
 
-          final String weightUnit = data['weight_unit'] ?? 'kg';
+          String displayWeight;
+          if (unitPref.toLowerCase() == 'lbs') {
+            displayWeight = (rawWeight * 2.20462).toStringAsFixed(1);
+          } else {
+            displayWeight = rawWeight.toStringAsFixed(1);
+          }
+
           final String goal = data['goal'] ?? 'Maintain';
 
           return SingleChildScrollView(
@@ -154,8 +143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 10),
-
-                // --- Profile Header Card ---
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -165,13 +152,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: Row(
                     children: [
-                      // PROFILE PICTURE STACK
                       Stack(
                         children: [
                           CircleAvatar(
                             radius: 40,
                             backgroundColor: Colors.grey[200],
-                            // Prioritize Firestore URL, then Auth URL, then Null
                             backgroundImage: photoUrl != null
                                 ? NetworkImage(photoUrl)
                                 : (user.photoURL != null ? NetworkImage(user.photoURL!) : null),
@@ -181,8 +166,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ? Icon(Icons.person, size: 40, color: Colors.grey[400])
                                 : null),
                           ),
-
-                          // THE GREEN PLUS BUTTON 🟢
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -198,8 +181,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(width: 20),
-
-                      // NAME AND AGE
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -212,8 +193,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // --- Stats Row ---
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(
@@ -223,17 +202,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildStatItem("Current weight", "$displayWeight $weightUnit"),
+                      _buildStatItem("Current weight", "$displayWeight $unitPref"),
                       _buildStatItem("Goal", goal.replaceAll('_', ' ').capitalize()),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 30),
                 const Align(alignment: Alignment.centerLeft, child: Text("CUSTOMIZATION", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
                 const SizedBox(height: 10),
-
-                // --- Menu Options ---
                 Container(
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                   child: Column(
@@ -284,7 +260,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// Extension for capitalization
 extension StringExtension on String {
   String capitalize() {
     if (this.isEmpty) return "";
@@ -314,36 +289,61 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   late TextEditingController _weightController;
   late TextEditingController _heightController;
 
-  // For the Dropdown
   String? _selectedActivityLevel;
-  final List<String> _activityLevels = [
-    "Sedentary",
-    "Light",
-    "Moderate",
-    "Active",
-    "Very Active"
-  ];
-
+  final List<String> _activityLevels = ["Sedentary", "Light", "Moderate", "Active", "Very Active"];
   bool _isSaving = false;
+
+  bool _isLbs = false;
+  bool _isFt = false;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.displayName);
 
-    double w = (widget.data['weight'] ?? 0).toDouble();
-    double h = (widget.data['height'] ?? 0).toDouble();
+    double weightKg = (widget.data['weight'] ?? 70.0).toDouble();
+    double heightCm = (widget.data['height'] ?? 170.0).toDouble();
 
-    // OLD: text: w % 1 == 0 ? w.toInt().toString() : w.toString()
-    // NEW: Force 1 decimal place if it's not a whole number
-    _weightController = TextEditingController(
-        text: w % 1 == 0 ? w.toInt().toString() : w.toStringAsFixed(1)
-    );
-    _heightController = TextEditingController(
-        text: h % 1 == 0 ? h.toInt().toString() : h.toStringAsFixed(1)
-    );
+    String wUnit = widget.data['weight_unit'] ?? 'kg';
+    String hUnit = widget.data['height_unit'] ?? 'cm';
 
-    String currentLevel = widget.data['activity_level'] ?? "Moderate";
+    // 1. SETUP WEIGHT
+    if (wUnit.toLowerCase() == 'lbs') {
+      _isLbs = true;
+      double lbs = weightKg * 2.20462;
+      _weightController = TextEditingController(text: lbs.toStringAsFixed(1));
+    } else {
+      _isLbs = false;
+      _weightController = TextEditingController(text: weightKg.toStringAsFixed(1));
+    }
+
+    // 2. SETUP HEIGHT
+    if (hUnit.toLowerCase() == 'ft') {
+      _isFt = true;
+      double ft = heightCm / 30.48;
+      _heightController = TextEditingController(text: ft.toStringAsFixed(2));
+    } else {
+      _isFt = false;
+      _heightController = TextEditingController(text: heightCm.toStringAsFixed(1));
+    }
+
+    // 🔴 3. FIX: HANDLE BOTH STRING AND DOUBLE FOR ACTIVITY LEVEL
+    var rawLevel = widget.data['activity_level'];
+    String currentLevel = "Moderate"; // Default fallback
+
+    if (rawLevel is num) {
+      // If DB has a number (e.g. 1.375), convert back to name
+      if (rawLevel <= 1.2) currentLevel = "Sedentary";
+      else if (rawLevel <= 1.375) currentLevel = "Light";
+      else if (rawLevel <= 1.55) currentLevel = "Moderate";
+      else if (rawLevel <= 1.725) currentLevel = "Active";
+      else currentLevel = "Very Active";
+    } else if (rawLevel is String) {
+      // If DB has a string, use it
+      currentLevel = rawLevel;
+    }
+
+    // Ensure value exists in list (Case insensitive check)
     _selectedActivityLevel = _activityLevels.firstWhere(
             (level) => level.toLowerCase() == currentLevel.toLowerCase(),
         orElse: () => "Moderate"
@@ -364,56 +364,52 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       String uid = FirebaseAuth.instance.currentUser!.uid;
 
       String newName = _nameController.text.trim();
-      double newWeight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0.0;
-      double newHeight = double.tryParse(_heightController.text.replaceAll(',', '.')) ?? 0.0;
+      double inputWeight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0.0;
+      double inputHeight = double.tryParse(_heightController.text.replaceAll(',', '.')) ?? 0.0;
       String newActivity = _selectedActivityLevel ?? "Moderate";
 
-      // 🛡️ SECURITY CHECK: LOGIC VALIDATION
-      // Prevent "2222222" or negative numbers
-      if (newWeight < 20 || newWeight > 500) {
-        throw "Weight must be between 20kg and 500kg.";
+      // Convert back to Metric for saving
+      double metricWeight = _isLbs ? (inputWeight * 0.453592) : inputWeight;
+      double metricHeight = _isFt ? (inputHeight * 30.48) : inputHeight;
+
+      if (metricWeight < 20 || metricWeight > 500) {
+        throw "Weight must be between 20kg (44lbs) and 500kg (1100lbs).";
       }
-      if (newHeight < 50 || newHeight > 300) {
-        throw "Height must be between 50cm and 300cm.";
+      if (metricHeight < 50 || metricHeight > 300) {
+        throw "Height must be between 50cm (1.6ft) and 300cm (9.8ft).";
       }
 
       int age = widget.data['age'] ?? 20;
-      String gender = widget.data['gender'] ?? 'male';
+      String genderStr = widget.data['gender'] ?? 'Male';
       String goalStr = widget.data['goal'] ?? 'Maintain';
 
-      // A. Calculate BMR
       double bmr = Calculator.calculateBMR(
-        heightCm: newHeight.toInt(),
-        weightKg: newWeight.toInt(),
+        heightCm: metricHeight,
+        weightKg: metricWeight,
         age: age,
-        gender: gender,
+        isMale: genderStr.toLowerCase() == 'male',
       );
 
-      // B. Map Activity
       double activityMultiplier = 1.2;
       if (newActivity == "Light") activityMultiplier = 1.375;
       if (newActivity == "Moderate") activityMultiplier = 1.55;
       if (newActivity == "Active") activityMultiplier = 1.725;
       if (newActivity == "Very Active") activityMultiplier = 1.9;
 
-      // C. Get New Calories
       double newTargetCals = Calculator.calculateTargetCalories(bmr, activityMultiplier: activityMultiplier);
 
-      // D. Get New Macros
       String macroGoal = 'maintain';
       if (goalStr.toLowerCase().contains('gain')) macroGoal = 'muscle';
       if (goalStr.toLowerCase().contains('lose')) macroGoal = 'loss';
 
       Map<String, double> newMacros = Calculator.calculateMacros(newTargetCals, goal: macroGoal);
-
-      // E. Get New Water
-      double newWater = Calculator.calculateWater(weightKg: newWeight.toInt());
+      double newWater = Calculator.calculateWater(weightKg: metricWeight);
 
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'first_name': newName,
-        'weight': newWeight,
-        'height': newHeight,
-        'activity_level': newActivity,
+        'weight': metricWeight,
+        'height': metricHeight,
+        'activity_level': newActivity, // Saves the String Name now
         'target_calories': newTargetCals.round(),
         'target_protein': newMacros['protein']!.round(),
         'target_carbs': newMacros['carb']!.round(),
@@ -432,7 +428,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // ⚠️ THIS WILL SHOW THE RED SNACKBAR IF VALIDATION FAILS
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(e.toString().replaceAll("Exception:", "")),
@@ -476,9 +471,9 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
             children: [
               _buildEditableItem("First name", _nameController),
               _buildDivider(),
-              _buildEditableItem("Current weight (kg)", _weightController, isNumber: true),
+              _buildEditableItem("Current weight (${_isLbs ? 'lbs' : 'kg'})", _weightController, isNumber: true),
               _buildDivider(),
-              _buildEditableItem("Height (cm)", _heightController, isNumber: true),
+              _buildEditableItem("Height (${_isFt ? 'ft' : 'cm'})", _heightController, isNumber: true),
               _buildDivider(),
               _buildDropdownItem("Activity Level"),
               _buildDivider(),
@@ -492,23 +487,17 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     );
   }
 
-// 🎨 UPDATED: Responsive Input Row (Fixes Overflow on Small Screens)
   Widget _buildEditableItem(String label, TextEditingController controller, {bool isNumber = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 1. The Label (Flexible allows it to shrink if needed, but usually stays full)
           Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-
-          const SizedBox(width: 10), // Spacer
-
-          // 2. The Input Box (Flexible + ConstrainedBox)
-          // We remove the hardcoded SizedBox(width: 160) and use Flexible
+          const SizedBox(width: 10),
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 160, minWidth: 80), // Max 160, but can shrink!
+              constraints: const BoxConstraints(maxWidth: 160, minWidth: 80),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
@@ -520,13 +509,11 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                   controller: controller,
                   keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.name,
                   textAlign: TextAlign.right,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     border: InputBorder.none,
                     hintText: "Enter value",
-                    suffixIcon: Icon(Icons.edit, size: 14, color: Colors.grey[400]),
-                    suffixIconConstraints: const BoxConstraints(maxHeight: 20, minWidth: 25),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
                   ),
                   style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
                 ),

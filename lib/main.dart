@@ -59,10 +59,10 @@ class FitLensApp extends StatelessWidget {
         primarySwatch: Colors.green,
         scaffoldBackgroundColor: const Color(0xFF121212),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF1E1E1E), // Slightly lighter grey than background
-          selectedItemColor: Color(0xFF5F7E5B), // Your Primary Green
+          backgroundColor: Color(0xFF1E1E1E), // Dark grey (not white)
+          selectedItemColor: Color(0xFF5F7E5B), // Your Green
           unselectedItemColor: Colors.grey,
-          elevation: 10,
+          elevation: 0, // Removes the shadow line
         ),
         // Define dark mode colors here if you want specifics
       ),
