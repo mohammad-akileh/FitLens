@@ -1,10 +1,11 @@
+// lib/screens/onboarding/onboarding_final_result_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import '../../utils/calculator.dart';
 import '../../auth_gate.dart';
-// Note: We don't need to import onboarding_card.dart here since we aren't using the big wrapper
+// Note: We don't need to import onboarding_card.dart here since we use MacroCard
 
 class OnboardingFinalResultScreen extends StatefulWidget {
   final String gender;
@@ -104,14 +105,16 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
             ? widget.heightVal
             : widget.heightVal * 30.48;
 
-        // Save to Firestore
+        // 💾 SAVE EVERYTHING TO FIRESTORE (Including Units!)
         await _firestore.collection('users').doc(user.uid).update({
           'gender': widget.gender,
           'age': widget.age,
           'weight': weightKg,
+          'weight_unit': widget.weightUnit, // 🟢 SAVING UNIT
           'height': heightCm,
+          'height_unit': widget.heightUnit, // 🟢 SAVING UNIT
           'goal': widget.goal,
-          'activity_level': 1.375,
+          'activity_level': 1.375, // Default activity number
 
           'meal_frequency': widget.mealFrequency,
           'weekend_habit': widget.weekendHabit,
@@ -177,7 +180,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
               ),
               const SizedBox(height: 30),
 
-              // --- 🛡️ FIXED: USING NEW MacroCard WIDGET INSTEAD OF OnboardingCard ---
+              // Macros
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -214,8 +217,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
   }
 }
 
-// --- 🟢 NEW LOCAL WIDGET FOR MACROS ---
-// This replaces the incorrect use of OnboardingCard
+// --- LOCAL WIDGET ---
 class MacroCard extends StatelessWidget {
   final String title;
   final String value;

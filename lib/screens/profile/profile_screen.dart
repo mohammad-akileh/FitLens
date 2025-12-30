@@ -327,7 +327,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
       _heightController = TextEditingController(text: heightCm.toStringAsFixed(1));
     }
 
-    // 🔴 3. FIX: HANDLE BOTH STRING AND DOUBLE FOR ACTIVITY LEVEL
+    // 🔴 3. FIX: HANDLE BOTH STRING AND DOUBLE FOR ACTIVITY LEVEL (THE RED SCREEN FIX)
     var rawLevel = widget.data['activity_level'];
     String currentLevel = "Moderate"; // Default fallback
 
