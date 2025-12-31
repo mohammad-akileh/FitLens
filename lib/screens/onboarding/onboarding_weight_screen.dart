@@ -1,3 +1,4 @@
+// lib/screens/onboarding/onboarding_weight_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_ruler_picker/flutter_ruler_picker.dart';
 import '../../widgets/onboarding_card.dart';
@@ -138,7 +139,7 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // --- FIXED: SizedBox instead of Expanded & .toDouble() ---
+                // --- FIXED: SizedBox instead of Expanded & Custom Marker ---
                 SizedBox(
                   height: 150,
                   width: double.infinity,
@@ -153,13 +154,21 @@ class _OnboardingWeightScreenState extends State<OnboardingWeightScreen> {
                       ScaleLineStyle(color: Colors.grey, width: 1, height: 15, scale: 5),
                       ScaleLineStyle(color: Colors.grey, width: 1, height: 15, scale: -1),
                     ],
-                    // 🛡️ FIX HERE: Cast 'num' to 'double'
                     onValueChanged: (value) {
                       setState(() => _currentWeightVal = value.toDouble());
                     },
                     width: MediaQuery.of(context).size.width,
                     height: 150,
                     rulerMarginTop: 8,
+                    // 🎨 CUSTOM GREEN MARKER ADDED HERE
+                    marker: Container(
+                      width: 4,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: mainTextColor, // Use your Green color
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                 ),
 

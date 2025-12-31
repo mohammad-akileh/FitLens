@@ -179,6 +179,14 @@ class _OnboardingHeightScreenState extends State<OnboardingHeightScreen> {
                     width: MediaQuery.of(context).size.width,
                     height: 150,
                     rulerMarginTop: 8,
+                    marker: Container(
+                      width: 4,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: mainTextColor, // Use your Green color
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                 ),
 
