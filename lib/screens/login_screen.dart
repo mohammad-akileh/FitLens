@@ -1,4 +1,3 @@
-// lib/screens/login_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
@@ -110,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // --- Google Login Logic ---
+  // --- 🔴 FIXED GOOGLE LOGIN LOGIC (With 'finally') ---
   void _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
     try {
@@ -118,12 +117,15 @@ class _LoginScreenState extends State<LoginScreen> {
       // AuthGate handles navigation.
     } catch (e) {
       if (mounted) {
-        setState(() => _isGoogleLoading = false);
         _showErrorSnackBar("Google Login Failed: ${e.toString()}");
+      }
+    } finally {
+      // 🛡️ STOP SPINNER EVEN IF CANCELLED
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -234,13 +236,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 20),
 
-              // --- Google Button ---
-              Center(
-                child: _isGoogleLoading
-                    ? const CircularProgressIndicator()
-                    : _buildSocialButton(
-                    onPressed: _handleGoogleSignIn,
-                    assetName: 'assets/google_icon.png'
+              // --- 🔴 FIXED GOOGLE BUTTON (Wide & Professional) ---
+              _isGoogleLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: _handleGoogleSignIn,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/google_icon.png', height: 24, width: 24),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "Sign in with Google",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -293,21 +320,6 @@ class _LoginScreenState extends State<LoginScreen> {
           borderRadius: BorderRadius.circular(15),
           borderSide: BorderSide(color: mainTextColor, width: 1),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton({required VoidCallback onPressed, required String assetName}) {
-    return InkWell(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-        ),
-        child: Image.asset(assetName, height: 30, width: 30),
       ),
     );
   }

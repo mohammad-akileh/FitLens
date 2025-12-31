@@ -137,14 +137,35 @@ class _RecipesTabState extends State<RecipesTab> {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: Image.network(recipe.imageUrl, height: 150, width: double.infinity, fit: BoxFit.cover),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: // Use this inside your RecipeCard widget
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Image.network(
+                      recipe.imageUrl, // The URL from the API
+                      height: 150, // Match your design height
+                      width: double.infinity,  // Match your design width
+                      fit: BoxFit.cover,
+
+                      // 🛡️ THE FIX: If the image fails (404), show the fallback!
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.network(
+                          "https://i.postimg.cc/J0zDqk9M/no-image-found-360x250.png", // Safe Backup Image
+                          height: 120,
+                          width: 120,
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    ),
+                  ),
                 ),
                 // ❤️ The Favorite Button (Bottom Right of Image)
                 Positioned(
                   bottom: 10,
                   right: 10,
-                  child: FavoriteButton(recipe: recipe), // Separate widget to prevent lag
+                  child: FavoriteButton(
+                      recipe: recipe), // Separate widget to prevent lag
                 )
               ],
             ),
