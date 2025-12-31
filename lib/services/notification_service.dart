@@ -1,4 +1,3 @@
-// lib/services/notification_service.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -8,11 +7,18 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
-    // 1. Init Timezone
+    // 1. Init Timezone Database
     tz_data.initializeTimeZones();
 
+    // 🔴 THE FIX: Force the app to use Jordan Time ('Asia/Amman')
+    // Without this, it defaults to UTC (3 hours behind you)
+    try {
+      tz.setLocalLocation(tz.getLocation('Asia/Amman'));
+    } catch (e) {
+      print("Could not set location, defaulting to UTC: $e");
+    }
+
     // 2. Setup Android Settings
-    // ⚠️ IMPORTANT: We use 'mipmap/ic_launcher' which exists by default.
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -25,7 +31,7 @@ class NotificationService {
         print("🔔 User clicked on notification: ${details.payload}");
       },
     );
-    print("✅ Notification Service Initialized!");
+    print("✅ Notification Service Initialized (Jordan Time)!");
   }
 
   static Future<void> showWarning(String title, String body) async {
@@ -33,17 +39,17 @@ class NotificationService {
       print("🚀 Attempting to show notification: $title");
 
       await _notifications.show(
-          DateTime.now().millisecond, // Unique ID every time
+          DateTime.now().millisecond,
           title,
           body,
           const NotificationDetails(
               android: AndroidNotificationDetails(
-                'channel_warning_v2', // 👈 CHANGED ID (Forces phone to reset settings)
+                'channel_warning_v2',
                 'Important Warnings',
                 channelDescription: 'Alerts for exceeding limits',
                 importance: Importance.max,
                 priority: Priority.high,
-                icon: '@mipmap/ic_launcher', // Explicitly setting icon
+                icon: '@mipmap/ic_launcher',
                 enableVibration: true,
                 playSound: true,
               )
@@ -55,7 +61,6 @@ class NotificationService {
     }
   }
 
-  // ... (Keep scheduleDaily and helper functions same as before)
   static Future<void> scheduleDaily(int id, String title, String body, int hour) async {
     try {
       await _notifications.zonedSchedule(
@@ -65,7 +70,7 @@ class NotificationService {
         _nextInstanceOfTime(hour),
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'channel_daily_v2', // 👈 CHANGED ID here too
+            'channel_daily_v2',
             'Daily Reminders',
             importance: Importance.max,
             priority: Priority.high,
@@ -75,13 +80,14 @@ class NotificationService {
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-      print("⏰ Scheduled reminder for $hour:00");
+      print("⏰ Scheduled reminder for $hour:00 Jordan Time");
     } catch (e) {
       print("🛑 ERROR Scheduling: $e");
     }
   }
 
   static tz.TZDateTime _nextInstanceOfTime(int hour) {
+    // Now that we set 'Asia/Amman' in init(), this 'now' will be correct
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
     if (scheduledDate.isBefore(now)) {

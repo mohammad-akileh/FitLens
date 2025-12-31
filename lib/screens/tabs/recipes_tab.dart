@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/recipe_service.dart';
-import '../../services/favorites_service.dart'; // Import your favorites service
+import '../../services/favorites_service.dart';
 import '../favorites_screen.dart';
 import '../recipe_detail_screen.dart';
 
@@ -17,7 +17,7 @@ class _RecipesTabState extends State<RecipesTab> {
   final User? user = FirebaseAuth.instance.currentUser;
 
   Future<List<Recipe>>? _recommendationsFuture;
-  int? _lastFetchedTarget; // ✅ Tracks when to refresh dynamic data
+  int? _lastFetchedTarget;
 
   // 🔍 Search Logic
   String _searchQuery = "";
@@ -35,7 +35,6 @@ class _RecipesTabState extends State<RecipesTab> {
           IconButton(
             icon: const Icon(Icons.favorite, color: Colors.red),
             onPressed: () {
-              // Navigate to the new Favorites Screen
               Navigator.push(context, MaterialPageRoute(builder: (c) => const FavoritesScreen()));
             },
           ),
@@ -51,17 +50,15 @@ class _RecipesTabState extends State<RecipesTab> {
           int current = (data['current_calories'] ?? 0).toInt();
           int remaining = target - current;
 
-          // ✅ DYNAMIC REFRESH LOGIC
-          // If we haven't fetched yet, OR if the target changed by >50 calories
+          // DYNAMIC REFRESH LOGIC
           if (_lastFetchedTarget == null || (remaining - _lastFetchedTarget!).abs() > 50) {
-            print("🔄 Targets changed! Refreshing recipes...");
             _lastFetchedTarget = remaining;
             _recommendationsFuture = RecipeService.getSmartRecommendations(remaining);
           }
 
           return Column(
             children: [
-              // 1. 🔍 SEARCH BAR
+              // 1. SEARCH BAR
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: TextField(
@@ -80,7 +77,7 @@ class _RecipesTabState extends State<RecipesTab> {
                 ),
               ),
 
-              // 2. 🍲 THE LIST
+              // 2. THE LIST
               Expanded(
                 child: FutureBuilder<List<Recipe>>(
                   future: _recommendationsFuture,
@@ -133,39 +130,32 @@ class _RecipesTabState extends State<RecipesTab> {
         ),
         child: Column(
           children: [
-            // ✅ IMAGE + FAVORITE BUTTON STACK
+            // IMAGE + FAVORITE BUTTON STACK
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: // Use this inside your RecipeCard widget
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Image.network(
-                      recipe.imageUrl, // The URL from the API
-                      height: 150, // Match your design height
-                      width: double.infinity,  // Match your design width
-                      fit: BoxFit.cover,
-
-                      // 🛡️ THE FIX: If the image fails (404), show the fallback!
-                      errorBuilder: (context, error, stackTrace) {
-                        return Image.network(
-                          "https://i.postimg.cc/J0zDqk9M/no-image-found-360x250.png", // Safe Backup Image
-                          height: 120,
-                          width: 120,
-                          fit: BoxFit.cover,
-                        );
-                      },
-                    ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: Image.network(
+                    recipe.imageUrl,
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    // Safety check for broken images
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.network(
+                        Recipe.fallbackImage, // Uses shared backup
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      );
+                    },
                   ),
                 ),
-                // ❤️ The Favorite Button (Bottom Right of Image)
+                // Favorite Button
                 Positioned(
                   bottom: 10,
                   right: 10,
-                  child: FavoriteButton(
-                      recipe: recipe), // Separate widget to prevent lag
+                  child: FavoriteButton(recipe: recipe),
                 )
               ],
             ),
@@ -195,52 +185,48 @@ class _RecipesTabState extends State<RecipesTab> {
   }
 }
 
-// ✅ NEW WIDGET: Handles the star logic independently
-class FavoriteButton extends StatefulWidget {
+// ------------------------------------------------------------------
+// ✅ THE CORRECT FAVORITE BUTTON (Stateless + StreamBuilder)
+// ------------------------------------------------------------------
+class FavoriteButton extends StatelessWidget {
   final Recipe recipe;
   const FavoriteButton({super.key, required this.recipe});
 
   @override
-  State<FavoriteButton> createState() => _FavoriteButtonState();
-}
-
-class _FavoriteButtonState extends State<FavoriteButton> {
-  bool isFav = false;
-  final FavoritesService _favService = FavoritesService();
-
-  @override
-  void initState() {
-    super.initState();
-    _checkFav();
-  }
-
-  void _checkFav() async {
-    bool fav = await _favService.isFavorite(widget.recipe.title);
-    if (mounted) setState(() => isFav = fav);
-  }
-
-  void _toggleFav() async {
-    setState(() => isFav = !isFav); // Instant UI update
-    if (isFav) {
-      await _favService.addFavorite(widget.recipe);
-    } else {
-      await _favService.removeFavorite(widget.recipe.title);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      backgroundColor: Colors.white,
-      radius: 18,
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(
-          isFav ? Icons.star : Icons.star_border,
-          color: isFav ? Colors.red : Colors.grey,
-        ),
-        onPressed: _toggleFav,
-      ),
+    final FavoritesService favService = FavoritesService();
+
+    // Listens to the DB live!
+    return StreamBuilder<List<Recipe>>(
+      stream: favService.getFavoritesStream(),
+      builder: (context, snapshot) {
+
+        bool isFav = false;
+        if (snapshot.hasData) {
+          // Check if this recipe exists in the favorites list
+          isFav = snapshot.data!.any((r) => r.title == recipe.title);
+        }
+
+        return CircleAvatar(
+          backgroundColor: Colors.white,
+          radius: 18,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: Icon(
+              isFav ? Icons.star : Icons.star_border,
+              color: isFav ? Colors.orange : Colors.grey,
+              size: 22,
+            ),
+            onPressed: () async {
+              if (isFav) {
+                await favService.removeFavorite(recipe.title);
+              } else {
+                await favService.addFavorite(recipe);
+              }
+            },
+          ),
+        );
+      },
     );
   }
 }

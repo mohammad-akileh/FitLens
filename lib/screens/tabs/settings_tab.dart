@@ -1,4 +1,4 @@
-import 'dart:io'; // 1. Needed for Internet Check
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,9 +9,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+// --- NEW IMPORTS FOR TESTING ---
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+// -------------------------------
+
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
-import '../../services/theme_provider.dart';
+// I assume 'flutterLocalNotificationsPlugin' is globally available in notification_service.dart
+// If not, make sure it is exported or imported here.
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -21,6 +27,7 @@ class SettingsTab extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsTab> {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   bool _notificationsEnabled = true;
   String _version = "1.0.0 (Beta)";
 
@@ -37,6 +44,51 @@ class _SettingsScreenState extends State<SettingsTab> {
     });
   }
 
+  // --- 🔴 NEW TEST FUNCTION ---
+  Future<void> _scheduleTestNotification() async {
+    try {
+      // 1. Get current time in Local Timezone
+      final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+      // 2. Add 1 minute
+      final tz.TZDateTime scheduledDate = now.add(const Duration(minutes: 1));
+
+      // 3. Print debugging info to Console (CHECK THIS!)
+      print("------------ NOTIFICATION TEST ------------");
+      print("Current Device Time: $now");
+      print("Scheduling for: $scheduledDate");
+      print("-------------------------------------------");
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        777, // Unique ID for test
+        'FitLens Test',
+        'If you see this, notifications are WORKING! 🚀',
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'daily_reminders_channel', // Must match your initialized channel ID
+            'Daily Reminders',
+            channelDescription: 'Reminders to log your meals',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Test Scheduled for 1 min from now! Close App.")),
+      );
+    } catch (e) {
+      print("ERROR SCHEDULING: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
+    }
+  }
+  // -----------------------------
+
   Future<void> _toggleNotifications(bool value) async {
     setState(() {
       _notificationsEnabled = value;
@@ -44,7 +96,7 @@ class _SettingsScreenState extends State<SettingsTab> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', value);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value ? "Notifications Enabled" : "Notifications Disabled")),
+      SnackBar(content: Text(value ? "Reminders Enabled" : "Reminders Disabled")),
     );
   }
 
@@ -55,7 +107,6 @@ class _SettingsScreenState extends State<SettingsTab> {
     }
   }
 
-  // --- 🌐 INTERNET CHECKER ---
   Future<bool> _hasInternet() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -65,12 +116,9 @@ class _SettingsScreenState extends State<SettingsTab> {
     }
   }
 
-  // --- 🔗 SMART SHARE FUNCTION (With Password & Internet Check) ---
-// --- 🔗 FIXED SMART SHARE FUNCTION ---
   Future<void> _shareApp() async {
     String message = 'Check out FitLens! It counts calories from photos instantly using AI.';
 
-    // 1. Check Internet
     bool hasNet = await _hasInternet();
     if (!hasNet) {
       Share.share(message);
@@ -78,19 +126,13 @@ class _SettingsScreenState extends State<SettingsTab> {
     }
 
     try {
-      // 2. DIRECT FETCH (This fixes the Permission Denied error)
-      // We ask for the specific file 'general'.
-      // Firestore will only give it to us if the 'app_secret' inside matches your Rule.
       DocumentSnapshot doc = await FirebaseFirestore.instance
           .collection('app_config')
           .doc('general')
           .get();
 
       if (doc.exists && doc.data() != null) {
-        // Safe cast to Map
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
-        // 3. Double Check the Password locally (Optional, but safe)
         if (data['app_secret'] == 'FitLens_VIP_2025') {
           String link = data['app_link'] ?? "";
           if (link.isNotEmpty) {
@@ -98,12 +140,8 @@ class _SettingsScreenState extends State<SettingsTab> {
           }
         }
       }
-
       Share.share(message);
-
     } catch (e) {
-      // Debug info: print(e);
-      // If permission denied or empty, just share text
       Share.share(message);
     }
   }
@@ -112,15 +150,15 @@ class _SettingsScreenState extends State<SettingsTab> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.white,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
         content: SingleChildScrollView(
           child: Text(
             content,
-            style: TextStyle(
+            style: const TextStyle(
                 fontSize: 14,
                 height: 1.5,
-                color: Theme.of(context).textTheme.bodyLarge?.color // Adapts to Dark Mode
+                color: Colors.black87
             ),
           ),
         ),
@@ -131,7 +169,6 @@ class _SettingsScreenState extends State<SettingsTab> {
     );
   }
 
-  // --- 🔴 DELETE ACCOUNT (With Internet Check) ---
   void _showDeleteAccountDialog() {
     showDialog(
       context: context,
@@ -149,14 +186,11 @@ class _SettingsScreenState extends State<SettingsTab> {
           ),
           TextButton(
             onPressed: () async {
-              // 1. Capture Navigator
               final navigator = Navigator.of(context);
-              final scaffoldMessenger = ScaffoldMessenger.of(context); // Capture scaffold for snackbar
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-              // 2. Close dialog first
               navigator.pop();
 
-              // 3. CHECK INTERNET
               bool hasNet = await _hasInternet();
               if (!hasNet) {
                 scaffoldMessenger.showSnackBar(
@@ -169,14 +203,9 @@ class _SettingsScreenState extends State<SettingsTab> {
               }
 
               try {
-                // 4. Call the smart delete method in AuthService
                 await AuthService().deleteAccount();
-
-                // 5. Navigate to Login (if not already handled by AuthGate)
                 navigator.popUntil((route) => route.isFirst);
-
               } catch (e) {
-                // Handle "Requires Recent Login" error
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text("Security: Please log out and log in again to delete your account.")),
@@ -191,7 +220,6 @@ class _SettingsScreenState extends State<SettingsTab> {
     );
   }
 
-  // --- SIGN OUT DIALOG ---
   void _showSignOutDialog() {
     showDialog(
       context: context,
@@ -220,30 +248,31 @@ class _SettingsScreenState extends State<SettingsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
-
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
       body: ListView(
         children: [
+          // 🔔 DAILY REMINDERS
           SwitchListTile(
-            title: const Text("Dark Mode"),
-            subtitle: const Text("Easier on the eyes"),
-            value: themeProvider.isDarkMode,
-            activeColor: Colors.green,
-            onChanged: (value) {
-              final provider = Provider.of<ThemeProvider>(context, listen: false);
-              provider.toggleTheme(value);
-            },
-          ),
-          SwitchListTile(
-            title: const Text("Notifications"),
-            subtitle: const Text("Receive daily reminders"),
+            title: const Text("Daily Reminders"),
+            subtitle: const Text("Receive notifications to log meals"),
             value: _notificationsEnabled,
             activeColor: Colors.green,
             onChanged: _toggleNotifications,
           ),
+
+          // 🔴 TEST BUTTON (REMOVE AFTER FIXING)
+          ListTile(
+            leading: const Icon(Icons.timer, color: Colors.orange),
+            title: const Text(
+              "🔴 TEST NOTIFICATION (1 MIN)",
+              style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text("Tap this, close app, wait 1 minute."),
+            onTap: _scheduleTestNotification,
+          ),
+          // ------------------------------------
+
           const Divider(),
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -259,11 +288,10 @@ class _SettingsScreenState extends State<SettingsTab> {
                       onPressed: () => _launchUrl("mailto:mohammad.akileh.815@gmail.com?subject=FitLens Feedback"),
                     ),
                     const SizedBox(width: 20),
-                    // 🎨 FIXED GITHUB ICON VISIBILITY IN DARK MODE
                     IconButton(
-                      icon: FaIcon(
+                      icon: const FaIcon(
                           FontAwesomeIcons.github,
-                          color: isDark ? Colors.white : Colors.black, // Auto-adjusts
+                          color: Colors.black,
                           size: 30
                       ),
                       onPressed: () => _launchUrl("https://github.com/mohammad-akileh"),

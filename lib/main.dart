@@ -15,7 +15,7 @@ void main() async {
   // 2. 📅 SCHEDULE THE DAILY REMINDERS (This was missing!)
   // ID 1: 10:00 AM
   await NotificationService.scheduleDaily(
-      1, "Hydration Check 💧", "Time to drink some water!", 10);
+      1, "Hydration Check 💧", "Time to drink some water!", 6);
 
   // ID 2: 1:00 PM (13:00)
   await NotificationService.scheduleDaily(

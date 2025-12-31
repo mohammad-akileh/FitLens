@@ -51,7 +51,21 @@ class FavoritesScreen extends StatelessWidget {
                   contentPadding: const EdgeInsets.all(10),
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(recipe.imageUrl, width: 60, height: 60, fit: BoxFit.cover),
+                    child: Image.network(
+                      recipe.imageUrl,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      // 🛡️ FIX: Safety check for broken images in Favorites
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.network(
+                          Recipe.fallbackImage, // Uses the shared backup link
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    ),
                   ),
                   title: Text(recipe.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text("${recipe.calories} kcal • ${recipe.protein}g Protein"),
