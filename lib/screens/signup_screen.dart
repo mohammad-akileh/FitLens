@@ -108,10 +108,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
       await _authService.signUpWithEmail(name, email, password);
 
       setState(() { _isLoading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign up successful! Please verify email.'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context);
+
+      // 🔔 SHOW DIALOG INSTEAD OF JUST SNACKBAR
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Success! 📧", style: TextStyle(fontWeight: FontWeight.bold)),
+            content: const Text(
+              "We sent a verification email to your inbox.\n\n"
+                  "⚠️ IMPORTANT: If you don't see it, please CHECK YOUR SPAM OR JUNK FOLDER.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Go back to login
+                },
+                child: const Text("OK, I'll check"),
+              ),
+            ],
+          ),
+        );
+      }
 
     } on FirebaseAuthException catch (e) {
       setState(() { _isLoading = false; });

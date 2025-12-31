@@ -469,7 +469,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
           child: Column(
             children: [
-              _buildEditableItem("First name", _nameController),
+              _buildEditableItem("Name", _nameController),
               _buildDivider(),
               _buildEditableItem("Current weight (${_isLbs ? 'lbs' : 'kg'})", _weightController, isNumber: true),
               _buildDivider(),

@@ -265,7 +265,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     final double padding = screenWidth * 0.05;
     final double mainCardHeight = screenHeight * 0.28;
 
-    String firstName = data['name'] ?? data['first_name'] ?? "User";
+    String firstName = data['first_name'] ?? data['name'] ?? "User";
     String? photoUrl = data['photo_url'];
 
     double targetCals = (data['target_calories'] ?? 2000).toDouble();

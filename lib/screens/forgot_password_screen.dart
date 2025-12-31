@@ -83,8 +83,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       await _authService.sendPasswordResetEmail(_emailController.text.trim());
-      _showSnackBar("Password reset link sent! Check your inbox.");
-      if (mounted) Navigator.pop(context); // Go back to login
+
+      // 🔔 SHOW DIALOG INSTEAD OF SNACKBAR
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Email Sent! 📨", style: TextStyle(fontWeight: FontWeight.bold)),
+            content: const Text(
+              "We've sent a reset link to your email.\n\n"
+                  "⚠️ IMPORTANT: If you don't see it, please CHECK YOUR SPAM OR JUNK FOLDER.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Go back to login
+                },
+                child: const Text("OK, I'll check"),
+              ),
+            ],
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String errorMessage = "No user found for that email.";
       _showSnackBar(errorMessage, isError: true);
