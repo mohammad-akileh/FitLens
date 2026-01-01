@@ -121,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-          String name = data['first_name'] ?? user.displayName ?? 'User';
+          String name = data['first_name'] ?? data['name'] ?? "User";
           final int age = data['age'] ?? 0;
           final String? photoUrl = data['photo_url'];
 

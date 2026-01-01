@@ -76,11 +76,16 @@ class _LoginScreenState extends State<LoginScreen> {
     return null; // No error
   }
 
-  // --- Email Login Logic ---
+  // --- 🔴 UPDATED LOGIN LOGIC (Fixes the raw error message) ---
+  // --- 🔴 FIXED LOGIN LOGIC (Aggressive Error Hiding) ---
+  // --- 🔴 REVISED LOGIN LOGIC (Smart Error Handling) ---
   void _login() async {
+    // 1. Hide Keyboard
+    FocusScope.of(context).unfocus();
+
     setState(() { _isLoading = true; });
 
-    // 1. 🛡️ VALIDATE EMAIL FIRST
+    // 2. Validate Email format first
     String? emailError = _validateEmailSpecifics(_emailController.text.trim());
     if (emailError != null) {
       _showErrorSnackBar(emailError);
@@ -89,27 +94,62 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
+      // 3. Attempt Login
       await _authService.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      // AuthGate handles navigation. Just stop spinner if still mounted.
+
+      // If we get here, login succeeded!
       if (mounted) setState(() { _isLoading = false; });
-    } on FirebaseAuthException catch (e) {
+
+    } catch (e) {
       if (mounted) setState(() { _isLoading = false; });
-      String errorMessage;
-      if (e.code == 'invalid-credential' || e.code == 'user-not-found' || e.code == 'wrong-password') {
-        errorMessage = "Incorrect email or password.";
-      } else if (e.code == 'email-not-verified') {
-        errorMessage = e.message ?? "Please verify your email.";
-      } else {
-        errorMessage = e.message ?? "An error occurred.";
+
+      String rawError = e.toString().toLowerCase();
+      String userMessage;
+
+      // --- 🔍 DIAGNOSIS LOGIC ---
+
+      // 1. Check for Verification Issues (The bug you found)
+      if (rawError.contains('verified') || e.toString().contains('email-not-verified')) {
+        // 🛠️ TRICK: If the user just verified, try to reload and see if it works now
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            await user.reload(); // 🔄 FORCE REFRESH FROM SERVER
+            if (user.emailVerified) {
+              // It worked! They are verified now. Stop the error.
+              // The AuthGate will pick this up automatically.
+              return;
+            }
+          }
+        } catch (_) {
+          // If reload fails, just show the message below
+        }
+        userMessage = "Please verify your email address to log in.";
       }
-      _showErrorSnackBar(errorMessage);
+      // 2. Check for Bad Password / User Not Found
+      else if (rawError.contains('user-not-found') ||
+          rawError.contains('wrong-password') ||
+          rawError.contains('invalid-credential') ||
+          rawError.contains('pigeon')) { // Catching the ugly error
+        userMessage = "Incorrect email or password.";
+      }
+      // 3. Network
+      else if (rawError.contains('network') || rawError.contains('connection')) {
+        userMessage = "Network error. Please check your internet.";
+      }
+      // 4. Fallback
+      else {
+        userMessage = "Incorrect email or password.";
+      }
+
+      _showErrorSnackBar(userMessage);
     }
   }
 
-  // --- 🔴 FIXED GOOGLE LOGIN LOGIC (With 'finally') ---
+  // --- Google Login Logic ---
   void _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
     try {
@@ -236,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 20),
 
-              // --- 🔴 FIXED GOOGLE BUTTON (Wide & Professional) ---
+              // Google Button
               _isGoogleLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SizedBox(
