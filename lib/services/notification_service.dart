@@ -6,6 +6,9 @@ import 'package:timezone/timezone.dart' as tz;
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
+  // 🟢 SINGLE ID FOR EVERYTHING (Prevents the "v3 vs v4" bug)
+  static const String _channelId = 'fitlens_reminders_final';
+
   static Future<void> init() async {
     tz_data.initializeTimeZones();
 
@@ -20,7 +23,8 @@ class NotificationService {
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const InitializationSettings settings = InitializationSettings(android: androidSettings);
+    const InitializationSettings settings =
+    InitializationSettings(android: androidSettings);
 
     await _notifications.initialize(
       settings,
@@ -28,26 +32,33 @@ class NotificationService {
         print("🔔 CLICKED: ${details.payload}");
       },
     );
+
+    // 3. Ask for Permission IMMEDIATELY on launch
+    final bool? granted = await _notifications
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
+    print("🔔 Permission Status: $granted");
   }
 
-  // --- 🔴 INSTANT TEST FUNCTION ---
+  // --- 🧪 INSTANT TEST FUNCTION ---
   static Future<void> scheduleTestNotification() async {
     try {
-      // 1. Ask Permission
+      // Re-ask permission just in case
       await _notifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
 
       print("🧪 Attempting INSTANT notification...");
 
-      // 2. SHOW IMMEDIATELY
       await _notifications.show(
         888, // Test ID
         'FitLens Test',
         'If you see this, IT WORKS! 🎉',
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'fitlens_channel_v3',
+            _channelId, // 🟢 USES THE UNIFIED ID
             'FitLens Reminders',
             channelDescription: 'Reminders to log your meals',
             importance: Importance.max,
@@ -64,43 +75,37 @@ class NotificationService {
     }
   }
 
-  // --- DAILY SCHEDULER (With Minutes Support) ---
+  // --- 📅 DAILY SCHEDULER (Reliable Inexact Mode) ---
   static Future<void> scheduleDaily(int id, String title, String body, int hour, int minute) async {
     try {
+      print("📌 Scheduling reminder at $hour:$minute");
       await _notifications.zonedSchedule(
         id,
         title,
         body,
-        _nextInstanceOfTime(hour, minute), // Pass minute to helper
+        _nextInstanceOfTime(hour, minute),
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'fitlens_channel_v3',
+            _channelId, // 🟢 USES THE UNIFIED ID
             'FitLens Reminders',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
+            ongoing: false,
+            autoCancel: true,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        // 🟢 INEXACT MODE (Reliable, bypasses strict permissions)
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-      print("⏰ Scheduled reminder for $hour:$minute Jordan Time");
+      print("✅ Reminder scheduled successfully");
+      print("⏰ Scheduled REPEATING reminder for $hour:$minute Jordan Time");
     } catch (e) {
       print("🛑 ERROR Scheduling Daily: $e");
     }
-  }
-
-  // --- HELPER FUNCTION (ONLY ONE VERSION NOW) ---
-  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    // Create date using hour AND minute
-    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-    return scheduledDate;
   }
 
   // --- ⚠️ WARNING NOTIFICATIONS (For Home Tab Limits) ---
@@ -113,7 +118,7 @@ class NotificationService {
         body,
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'fitlens_channel_v3',
+            _channelId, // 🟢 USES THE UNIFIED ID
             'FitLens Warnings',
             channelDescription: 'Alerts for exceeding limits',
             importance: Importance.max,
@@ -121,11 +126,24 @@ class NotificationService {
             icon: '@mipmap/ic_launcher',
             playSound: true,
             enableVibration: true,
+            ongoing: false,
+            autoCancel: true,
           ),
         ),
       );
     } catch (e) {
       print("🛑 ERROR Sending Warning: $e");
     }
+  }
+
+  // --- HELPER FUNCTION ---
+  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
   }
 }

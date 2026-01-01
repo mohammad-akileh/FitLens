@@ -15,7 +15,7 @@ void main() async {
 
   // TEST: If it is 7:10 AM, set this to 7, 12 (2 mins later)
   await NotificationService.scheduleDaily(
-      1, "Hydration Check 💧", "Time to drink some water!", 7, 25);
+      1, "Hydration Check 💧", "Time to drink some water!", 14, 41);
 
   // Lunch at 1:00 PM
   await NotificationService.scheduleDaily(
