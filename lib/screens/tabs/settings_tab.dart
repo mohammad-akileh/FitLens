@@ -8,16 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 //import 'package:package_info_plus/package_info_plus.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // 👈 ADD THIS
-// --- NEW IMPORTS FOR TESTING ---
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-// -------------------------------
 
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
-// I assume 'flutterLocalNotificationsPlugin' is globally available in notification_service.dart
-// If not, make sure it is exported or imported here.
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -44,37 +39,27 @@ class _SettingsScreenState extends State<SettingsTab> {
     });
   }
 
-  // --- 🔴 NEW TEST FUNCTION ---
-// In lib/screens/settings_tab.dart
-
   Future<void> _scheduleTestNotification() async {
-    // Just call the service!
     await NotificationService.scheduleTestNotification();
-
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Test Scheduled! Wait 10 seconds...")),
       );
     }
   }
-  // -----------------------------
 
   Future<void> _toggleNotifications(bool value) async {
     setState(() {
       _notificationsEnabled = value;
     });
 
-    // Save to local memory (SharedPreferences)
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', value);
 
-    // 🔴 CONNECT TO FIREBASE (The Fix)
     if (value) {
-      // If ON, Subscribe to the channel
       await FirebaseMessaging.instance.subscribeToTopic('daily_reminders');
       print("✅ Subscribed to daily_reminders");
     } else {
-      // If OFF, Unsubscribe from the channel
       await FirebaseMessaging.instance.unsubscribeFromTopic('daily_reminders');
       print("🔕 Unsubscribed from daily_reminders");
     }
@@ -150,6 +135,67 @@ class _SettingsScreenState extends State<SettingsTab> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+        ],
+      ),
+    );
+  }
+
+  // 🔵 NEW DIALOG FOR TEAM MEMBERS
+  void _showContactDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFDFE2D1), // Same as page background
+        title: const Text("The Team", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Mohammad Khalid Akileh
+              const Text("Mohammad Khalid Akileh", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.email, color: Colors.red, size: 28),
+                    onPressed: () => _launchUrl("mailto:mohammad.akileh.815@gmail.com?subject=FitLens Feedback"),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.github, color: Colors.black, size: 28),
+                    onPressed: () => _launchUrl("https://github.com/mohammad-akileh"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+
+              // 2. Jood Fareed Alnajjar
+              const Text("Jood Fareed Alnajjar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.email, color: Colors.red, size: 28),
+                    onPressed: () => _launchUrl("mailto:Joodnajjar87@gmail.com"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+
+              // 3. Mohammad Kehair Abu Rumman
+              const Text("Mohammad Kehair Abu Rumman", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.email, color: Colors.red, size: 28),
+                    onPressed: () => _launchUrl("mailto:aburummanmohammad19@gmail.com"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close", style: TextStyle(color: Colors.black))),
         ],
       ),
     );
@@ -248,7 +294,7 @@ class _SettingsScreenState extends State<SettingsTab> {
             onChanged: _toggleNotifications,
           ),
 
-          // 🔴 TEST BUTTON (REMOVE AFTER FIXING)
+          // 🔴 TEST BUTTON
           ListTile(
             leading: const Icon(Icons.timer, color: Colors.orange),
             title: const Text(
@@ -258,37 +304,11 @@ class _SettingsScreenState extends State<SettingsTab> {
             subtitle: const Text("Tap this, close app, wait 1 minute."),
             onTap: _scheduleTestNotification,
           ),
-          // ------------------------------------
 
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Contact Developer", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.email, color: Colors.red, size: 30),
-                      onPressed: () => _launchUrl("mailto:mohammad.akileh.815@gmail.com?subject=FitLens Feedback"),
-                    ),
-                    const SizedBox(width: 20),
-                    IconButton(
-                      icon: const FaIcon(
-                          FontAwesomeIcons.github,
-                          color: Colors.black,
-                          size: 30
-                      ),
-                      onPressed: () => _launchUrl("https://github.com/mohammad-akileh"),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
+
+          // I REMOVED THE OLD "CONTACT DEVELOPER" BLOCK FROM HERE
+
           ListTile(
             leading: const Icon(Icons.privacy_tip),
             title: const Text("Privacy Policy"),
@@ -312,6 +332,17 @@ class _SettingsScreenState extends State<SettingsTab> {
             title: const Text("Share App"),
             onTap: _shareApp,
           ),
+
+          // 🟢 MOVED "CONTACT DEVELOPERS" HERE
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.group), // Icon representing the Team
+            title: const Text("Contact Developers"),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _showContactDialog, // Opens the new popup
+          ),
+          // ------------------------------------
+
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.grey),

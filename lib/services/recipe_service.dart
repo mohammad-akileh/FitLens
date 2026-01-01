@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../keys.dart';
 class Recipe {
   final String title;
   final String imageUrl;
@@ -69,8 +69,8 @@ class Recipe {
 }
 
 class RecipeService {
-  static const String _appId = "538a4d05";
-  static const String _appKey = "d95387336370474ae20c002554dce446";
+  static final String _appId = RecipeKeys.appId ;
+  static const String _appKey = RecipeKeys.appKey;
   static const String _baseUrl = "https://api.edamam.com/api/recipes/v2";
 
   static Future<List<Recipe>> getSmartRecommendations(int targetCalories) async {
