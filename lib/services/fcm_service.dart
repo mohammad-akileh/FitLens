@@ -11,6 +11,8 @@ class FcmService {
       badge: true,
       sound: true,
     );
+    await _firebaseMessaging.subscribeToTopic('daily_reminders');
+    print("✅ Auto-subscribed to daily_reminders topic");
 
     print('🔔 User granted permission: ${settings.authorizationStatus}');
 
@@ -32,5 +34,6 @@ class FcmService {
         );
       }
     });
+
   }
 }

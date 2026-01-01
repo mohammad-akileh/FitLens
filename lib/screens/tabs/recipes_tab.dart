@@ -26,7 +26,7 @@ class _RecipesTabState extends State<RecipesTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5F0),
+      backgroundColor: const Color(0xFFDFE2D1),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,

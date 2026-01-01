@@ -63,11 +63,27 @@ class _SettingsScreenState extends State<SettingsTab> {
     setState(() {
       _notificationsEnabled = value;
     });
+
+    // Save to local memory (SharedPreferences)
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', value);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value ? "Reminders Enabled" : "Reminders Disabled")),
-    );
+
+    // 🔴 CONNECT TO FIREBASE (The Fix)
+    if (value) {
+      // If ON, Subscribe to the channel
+      await FirebaseMessaging.instance.subscribeToTopic('daily_reminders');
+      print("✅ Subscribed to daily_reminders");
+    } else {
+      // If OFF, Unsubscribe from the channel
+      await FirebaseMessaging.instance.unsubscribeFromTopic('daily_reminders');
+      print("🔕 Unsubscribed from daily_reminders");
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(value ? "Reminders Enabled" : "Reminders Disabled")),
+      );
+    }
   }
 
   Future<void> _launchUrl(String urlString) async {
