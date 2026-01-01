@@ -45,45 +45,15 @@ class _SettingsScreenState extends State<SettingsTab> {
   }
 
   // --- 🔴 NEW TEST FUNCTION ---
+// In lib/screens/settings_tab.dart
+
   Future<void> _scheduleTestNotification() async {
-    try {
-      // 1. Get current time in Local Timezone
-      final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-      // 2. Add 1 minute
-      final tz.TZDateTime scheduledDate = now.add(const Duration(minutes: 1));
+    // Just call the service!
+    await NotificationService.scheduleTestNotification();
 
-      // 3. Print debugging info to Console (CHECK THIS!)
-      print("------------ NOTIFICATION TEST ------------");
-      print("Current Device Time: $now");
-      print("Scheduling for: $scheduledDate");
-      print("-------------------------------------------");
-
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        777, // Unique ID for test
-        'FitLens Test',
-        'If you see this, notifications are WORKING! 🚀',
-        scheduledDate,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'daily_reminders_channel', // Must match your initialized channel ID
-            'Daily Reminders',
-            channelDescription: 'Reminders to log your meals',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-        UILocalNotificationDateInterpretation.absoluteTime,
-      );
-
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Test Scheduled for 1 min from now! Close App.")),
-      );
-    } catch (e) {
-      print("ERROR SCHEDULING: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        const SnackBar(content: Text("Test Scheduled! Wait 10 seconds...")),
       );
     }
   }

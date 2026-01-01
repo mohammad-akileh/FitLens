@@ -7,15 +7,13 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
-    // 1. Init Timezone Database
     tz_data.initializeTimeZones();
 
-    // 🔴 THE FIX: Force the app to use Jordan Time ('Asia/Amman')
-    // Without this, it defaults to UTC (3 hours behind you)
+    // 1. Force Jordan Time
     try {
       tz.setLocalLocation(tz.getLocation('Asia/Amman'));
     } catch (e) {
-      print("Could not set location, defaulting to UTC: $e");
+      print("Timezone error: $e");
     }
 
     // 2. Setup Android Settings
@@ -24,75 +22,110 @@ class NotificationService {
 
     const InitializationSettings settings = InitializationSettings(android: androidSettings);
 
-    // 3. Initialize Plugin
     await _notifications.initialize(
       settings,
       onDidReceiveNotificationResponse: (details) {
-        print("🔔 User clicked on notification: ${details.payload}");
+        print("🔔 CLICKED: ${details.payload}");
       },
     );
-    print("✅ Notification Service Initialized (Jordan Time)!");
   }
 
-  static Future<void> showWarning(String title, String body) async {
+  // --- 🔴 INSTANT TEST FUNCTION ---
+  static Future<void> scheduleTestNotification() async {
     try {
-      print("🚀 Attempting to show notification: $title");
+      // 1. Ask Permission
+      await _notifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
 
+      print("🧪 Attempting INSTANT notification...");
+
+      // 2. SHOW IMMEDIATELY
       await _notifications.show(
-          DateTime.now().millisecond,
-          title,
-          body,
-          const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'channel_warning_v2',
-                'Important Warnings',
-                channelDescription: 'Alerts for exceeding limits',
-                importance: Importance.max,
-                priority: Priority.high,
-                icon: '@mipmap/ic_launcher',
-                enableVibration: true,
-                playSound: true,
-              )
-          )
+        888, // Test ID
+        'FitLens Test',
+        'If you see this, IT WORKS! 🎉',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'fitlens_channel_v3',
+            'FitLens Reminders',
+            channelDescription: 'Reminders to log your meals',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            playSound: true,
+            enableVibration: true,
+          ),
+        ),
       );
-      print("🦅 Notification sent to system!");
+      print("✅ Notification sent to system.");
     } catch (e) {
-      print("🛑 ERROR Sending Notification: $e");
+      print("🛑 ERROR: $e");
     }
   }
 
-  static Future<void> scheduleDaily(int id, String title, String body, int hour) async {
+  // --- DAILY SCHEDULER (With Minutes Support) ---
+  static Future<void> scheduleDaily(int id, String title, String body, int hour, int minute) async {
     try {
       await _notifications.zonedSchedule(
         id,
         title,
         body,
-        _nextInstanceOfTime(hour),
+        _nextInstanceOfTime(hour, minute), // Pass minute to helper
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'channel_daily_v2',
-            'Daily Reminders',
+            'fitlens_channel_v3',
+            'FitLens Reminders',
             importance: Importance.max,
             priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-      print("⏰ Scheduled reminder for $hour:00 Jordan Time");
+      print("⏰ Scheduled reminder for $hour:$minute Jordan Time");
     } catch (e) {
-      print("🛑 ERROR Scheduling: $e");
+      print("🛑 ERROR Scheduling Daily: $e");
     }
   }
 
-  static tz.TZDateTime _nextInstanceOfTime(int hour) {
-    // Now that we set 'Asia/Amman' in init(), this 'now' will be correct
+  // --- HELPER FUNCTION (ONLY ONE VERSION NOW) ---
+  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
+    // Create date using hour AND minute
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;
+  }
+
+  // --- ⚠️ WARNING NOTIFICATIONS (For Home Tab Limits) ---
+  static Future<void> showWarning(String title, String body) async {
+    try {
+      print("🚀 Triggering Warning: $title");
+      await _notifications.show(
+        DateTime.now().millisecond, // Unique ID
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'fitlens_channel_v3',
+            'FitLens Warnings',
+            channelDescription: 'Alerts for exceeding limits',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            playSound: true,
+            enableVibration: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      print("🛑 ERROR Sending Warning: $e");
+    }
   }
 }
