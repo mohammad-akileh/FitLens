@@ -240,7 +240,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   GButton(icon: Icons.home_rounded, text: 'Home'),
                   GButton(icon: Icons.history_rounded, text: 'History'),
                   GButton(icon: Icons.receipt_long_sharp, text: 'Recipes'),
-                  GButton(icon: Icons.person_rounded, text: 'Profile'),
+                  GButton(icon: Icons.settings, text: 'Settings'),
                 ],
                 selectedIndex: _selectedIndex,
                 onTabChange: (index) {

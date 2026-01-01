@@ -189,6 +189,11 @@ class _SettingsScreenState extends State<SettingsTab> {
                     icon: const Icon(Icons.email, color: Colors.red, size: 28),
                     onPressed: () => _launchUrl("mailto:aburummanmohammad19@gmail.com"),
                   ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.github, color: Colors.black, size: 28),
+                    onPressed: () => _launchUrl("https://github.com/MohammadNaser0"),
+                  ),
                 ],
               ),
             ],
@@ -295,15 +300,15 @@ class _SettingsScreenState extends State<SettingsTab> {
           ),
 
           // 🔴 TEST BUTTON
-          ListTile(
-            leading: const Icon(Icons.timer, color: Colors.orange),
-            title: const Text(
-              "🔴 TEST NOTIFICATION (1 MIN)",
-              style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
-            ),
-            subtitle: const Text("Tap this, close app, wait 1 minute."),
-            onTap: _scheduleTestNotification,
-          ),
+          // ListTile(
+          //   leading: const Icon(Icons.timer, color: Colors.orange),
+          //   title: const Text(
+          //     "🔴 TEST NOTIFICATION (1 MIN)",
+          //     style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+          //   ),
+          //   subtitle: const Text("Tap this, close app, wait 1 minute."),
+          //   onTap: _scheduleTestNotification,
+          // ),
 
           const Divider(),
 
