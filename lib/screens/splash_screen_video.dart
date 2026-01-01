@@ -3,7 +3,7 @@ import 'package:lottie/lottie.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../auth_gate.dart';
 import '../firebase_options.dart';
-import 'package:fitlens/services/fcm_service.dart'; // 👈 IMPORT FCM SERVICE
+import 'package:fitlens/services/fcm_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,26 +28,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _startInitialization() async {
-    // 1. Initialize Firebase
+    // 1. Initialize Firebase (This is the BRAIN for Login/Auth)
+    // We MUST wait for this, and we do.
     final firebaseFuture = Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // 2. Add delay for animation
+    // 2. Minimum delay to let the animation start smoothly
     final animationFuture = Future.delayed(const Duration(seconds: 2));
 
-    // Wait for BOTH to finish
+    // Wait for BOTH (Core Firebase + Delay)
     await Future.wait([firebaseFuture, animationFuture]);
 
-    // 🔴 3. NOW INIT FCM (Safe because Firebase is done!)
-    // This will print the Token to your console
+    // 🔴 3. SAFETY FIX: FCM INIT WITH TIMEOUT
+    // This tries to connect notifications.
+    // If it takes longer than 3 seconds (slow internet), it STOPS waiting
+    // and lets the app open anyway. Login will still work!
     try {
-      await FcmService.init();
+      await FcmService.init().timeout(const Duration(seconds: 3));
     } catch (e) {
-      print("⚠️ FCM Init Error (Non-fatal): $e");
+      print("⚠️ Slow Internet or FCM Error: Skipping to ensure app opens fast.");
     }
 
-    // 4. Start the animation
+    // 4. Start the animation (This will now ALWAYS run, never get stuck)
     _controller.forward();
   }
 
@@ -75,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         width: screenWidth,
         height: screenHeight,
         child: Lottie.asset(
-          'assets/FlowLast.json',
+          'assets/FlowLast.json', // Your verified asset
           controller: _controller,
           repeat: false,
           fit: BoxFit.cover,

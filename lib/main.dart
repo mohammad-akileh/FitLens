@@ -22,22 +22,22 @@ class FitLensApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'FitLens',
       // Simple Theme (No Provider, No Dark Mode button logic)
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primarySwatch: Colors.green,
-        scaffoldBackgroundColor: const Color(0xFFF6F5F0),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.green,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF1E1E1E),
-          selectedItemColor: Color(0xFF5F7E5B),
-          unselectedItemColor: Colors.grey,
-          elevation: 0,
-        ),
-      ),
+      // theme: ThemeData(
+      //   brightness: Brightness.light,
+      //   primarySwatch: Colors.green,
+      //   scaffoldBackgroundColor: const Color(0xFFF6F5F0),
+      // ),
+      // darkTheme: ThemeData(
+      //   brightness: Brightness.dark,
+      //   primarySwatch: Colors.green,
+      //   scaffoldBackgroundColor: const Color(0xFF121212),
+      //   bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      //     backgroundColor: Color(0xFF1E1E1E),
+      //     selectedItemColor: Color(0xFF5F7E5B),
+      //     unselectedItemColor: Colors.grey,
+      //     elevation: 0,
+      //   ),
+      // ),
       home: const SplashScreen(),
     );
   }

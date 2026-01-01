@@ -518,7 +518,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-            color: const Color(0xC32C2C2C),
+            color:  cardDark,
             borderRadius: BorderRadius.circular(25)),
         child: Row(children: [
           Expanded(

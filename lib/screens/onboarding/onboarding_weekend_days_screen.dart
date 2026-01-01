@@ -35,7 +35,7 @@ class OnboardingWeekendDaysScreen extends StatefulWidget {
 class _OnboardingWeekendDaysScreenState extends State<OnboardingWeekendDaysScreen> {
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color buttonColor = const Color(0xFFDFE2D1);
-  
+
   String? _selectedDays;
   final List<String> _options = [
     "Saturdays and Sundays",
@@ -57,7 +57,7 @@ class _OnboardingWeekendDaysScreenState extends State<OnboardingWeekendDaysScree
         children: [
           Container(decoration: BoxDecoration(image: DecorationImage(image: AssetImage('assets/intro_back.jpg'), fit: BoxFit.cover))),
           Positioned(top: 50, left: 20, child: CircleAvatar(backgroundColor: Colors.white.withOpacity(0.8), child: IconButton(icon: Icon(Icons.arrow_back, color: mainTextColor), onPressed: () => Navigator.pop(context)))),
-          
+
           OnboardingCard(
             child: Column(
               children: [
@@ -67,7 +67,7 @@ class _OnboardingWeekendDaysScreenState extends State<OnboardingWeekendDaysScree
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
                 SizedBox(height: 30),
-                
+
                 ..._options.map((option) => Padding(
                   padding: const EdgeInsets.only(bottom: 15),
                   child: _buildOptionButton(option),
