@@ -57,8 +57,8 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
   Future<void> _requestPermission() async {
     // This connects to the Android-specific notification plugin
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-    FlutterLocalNotificationsPlugin().resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+        FlutterLocalNotificationsPlugin().resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     // This pops up the system dialog "Allow FitLens to send notifications?"
     await androidImplementation?.requestNotificationsPermission();
@@ -291,7 +291,6 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
         : (data['current_fat'] ?? 0).toDouble();
 
     return Scaffold(
-
       body: Stack(
         children: [
           Container(
@@ -518,8 +517,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
     return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-            color:  cardDark,
-            borderRadius: BorderRadius.circular(25)),
+            color: cardDark, borderRadius: BorderRadius.circular(25)),
         child: Row(children: [
           Expanded(
               child: Column(
@@ -530,7 +528,11 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                       color: Colors.blueAccent, size: 18),
                   const SizedBox(width: 5),
                   Text("Water Intake",
-                      style: TextStyle(fontSize: 14, color: cardDark))
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.bold,
+                      ))
                 ]),
                 const SizedBox(height: 10),
                 TweenAnimationBuilder<double>(
@@ -548,7 +550,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                             TextSpan(
                                 text: "/ ${targetWater.toInt()} ml",
                                 style: TextStyle(
-                                    fontSize: 16, color: Colors.grey[500]))
+                                    fontSize: 16, color: Colors.white70))
                           ]));
                     }),
                 const SizedBox(height: 20),

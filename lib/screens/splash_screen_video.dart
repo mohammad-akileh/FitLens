@@ -3,7 +3,7 @@ import 'package:lottie/lottie.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../auth_gate.dart';
 import '../firebase_options.dart';
-import 'package:fitlens/services/fcm_service.dart';
+import 'package:fitlens/services/fcm_service.dart'; // 👈 IMPORT FCM SERVICE
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,29 +28,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _startInitialization() async {
-    // 1. Initialize Firebase (This is the BRAIN for Login/Auth)
-    // We MUST wait for this, and we do.
+    // 1. Initialize Firebase
     final firebaseFuture = Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // 2. Minimum delay to let the animation start smoothly
-    final animationFuture = Future.delayed(const Duration(seconds: 2));
+    // 2. Add delay for animation
+    final animationFuture = Future.delayed(const Duration(seconds: 0));
 
-    // Wait for BOTH (Core Firebase + Delay)
+    // Wait for BOTH to finish
     await Future.wait([firebaseFuture, animationFuture]);
 
-    // 🔴 3. SAFETY FIX: FCM INIT WITH TIMEOUT
-    // This tries to connect notifications.
-    // If it takes longer than 3 seconds (slow internet), it STOPS waiting
-    // and lets the app open anyway. Login will still work!
+    // 🔴 3. NOW INIT FCM (Safe because Firebase is done!)
+    // This will print the Token to your console
     try {
-      await FcmService.init().timeout(const Duration(seconds: 3));
+      await FcmService.init();
     } catch (e) {
-      print("⚠️ Slow Internet or FCM Error: Skipping to ensure app opens fast.");
+      print("⚠️ FCM Init Error (Non-fatal): $e");
     }
 
-    // 4. Start the animation (This will now ALWAYS run, never get stuck)
+    // 4. Start the animation
     _controller.forward();
   }
 
@@ -78,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         width: screenWidth,
         height: screenHeight,
         child: Lottie.asset(
-          'assets/FlowLast.json', // Your verified asset
+          'assets/FlowLast.json',
           controller: _controller,
           repeat: false,
           fit: BoxFit.cover,

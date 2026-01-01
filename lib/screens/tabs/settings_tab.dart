@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsTab> {
         if (data['app_secret'] == 'FitLens_VIP_2025') {
           String link = data['app_link'] ?? "";
           if (link.isNotEmpty) {
-            message += "\n\n$link";
+            message += "\n$link";
           }
         }
       }
