@@ -40,6 +40,7 @@ dependencies:
   share_plus: ^12.0.1
   package_info_plus: ^9.0.0
   flutter_ruler_picker: ^1.0.6
+  firebase_messaging: ^15.2.10
   # ------------------------------------------
 
 dev_dependencies:

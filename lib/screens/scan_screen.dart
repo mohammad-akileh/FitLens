@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
-import '../screens/meal_history_detail_screen.dart'; // This import works now!
+import '../screens/meal_history_detail_screen.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -17,13 +17,13 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  final ApiService _apiService = ApiService(); // Ensure ApiService is defined in services
+  final ApiService _apiService = ApiService();
   bool _isLoading = false;
 
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color buttonColor = const Color(0xFFF6F5F0);
 
-  // 1. Pick Image
+  // 1. Pick Image (Updated to fix the "Weird Message")
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
@@ -33,43 +33,65 @@ class _ScanScreenState extends State<ScanScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      // 🎨 HERE IS THE FIX
+      // Instead of showing the raw error 'e', we pick a nice message.
+      String niceMessage = "Could not open camera.";
+
+      // If the error text contains "permission" or "access", be specific
+      if (e.toString().toLowerCase().contains("permission") ||
+          e.toString().toLowerCase().contains("access") ||
+          e.toString().toLowerCase().contains("denied")) {
+        niceMessage = "Camera permission is needed to scan your meal 📸";
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(niceMessage),
+            backgroundColor: Colors.orange, // Orange is friendlier than Red for permissions
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
+
   void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: color));
+    }
   }
+
   // 2. Analyze & Navigate
   Future<void> _analyzeMeal() async {
     bool result = await InternetConnection().hasInternetAccess;
     if (!result) {
       _showSnack("No Internet! Please check your connection.", Colors.red);
-      return; // 🛑 Stop right here. Don't crash.
+      return;
     }
     if (_imageFile == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Call the AI
       String result = await _apiService.analyzeImage(_imageFile!);
 
       if (mounted) {
-        // Go to Results -> This call is now VALID ✅
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MealHistoryDetailScreen(
-              imageFile: _imageFile, // Passed correctly
-              aiResponse: result,    // Passed correctly
+              imageFile: _imageFile,
+              aiResponse: result,
             ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -81,7 +103,8 @@ class _ScanScreenState extends State<ScanScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Scan ${widget.mealType}", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: Text("Scan ${widget.mealType}",
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -109,9 +132,12 @@ class _ScanScreenState extends State<ScanScreen> {
                     : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.camera_alt_rounded, size: 60, color: Colors.grey),
+                    const Icon(Icons.camera_alt_rounded,
+                        size: 60, color: Colors.grey),
                     const SizedBox(height: 20),
-                    Text("Take a photo of your meal", style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                    Text("Take a photo of your meal",
+                        style: TextStyle(
+                            color: Colors.grey[600], fontSize: 16)),
                   ],
                 ),
               ),
@@ -122,9 +148,13 @@ class _ScanScreenState extends State<ScanScreen> {
             if (_imageFile == null) ...[
               Row(
                 children: [
-                  Expanded(child: _buildActionButton("Camera", Icons.camera, () => _pickImage(ImageSource.camera))),
+                  Expanded(
+                      child: _buildActionButton("Camera", Icons.camera,
+                              () => _pickImage(ImageSource.camera))),
                   const SizedBox(width: 15),
-                  Expanded(child: _buildActionButton("Gallery", Icons.photo_library, () => _pickImage(ImageSource.gallery))),
+                  Expanded(
+                      child: _buildActionButton("Gallery", Icons.photo_library,
+                              () => _pickImage(ImageSource.gallery))),
                 ],
               ),
             ] else ...[
@@ -136,9 +166,11 @@ class _ScanScreenState extends State<ScanScreen> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         side: const BorderSide(color: Colors.grey),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
                       ),
-                      child: Text("Retake", style: TextStyle(color: Colors.grey[800], fontSize: 16)),
+                      child: Text("Retake",
+                          style: TextStyle(color: Colors.grey[800], fontSize: 16)),
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -148,11 +180,20 @@ class _ScanScreenState extends State<ScanScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: mainTextColor,
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
                       ),
                       child: _isLoading
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text("Analyze Meal", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                          : const Text("Analyze Meal",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -169,7 +210,9 @@ class _ScanScreenState extends State<ScanScreen> {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, color: Colors.white),
-      label: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      label: Text(label,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: mainTextColor,
         padding: const EdgeInsets.symmetric(vertical: 15),

@@ -1,37 +1,16 @@
 import 'package:fitlens/services/notification_service.dart';
+// We don't need FcmService here anymore, it moves to Splash
 import 'package:flutter/material.dart';
 import 'screens/splash_screen_video.dart';
-import 'package:provider/provider.dart';
-import 'services/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize Notifications
+  // 1. Initialize Local Notifications ONLY
+  // (We do NOT init Firebase here because Splash Screen does it)
   await NotificationService.init();
 
-  // 2. 📅 SCHEDULE REMINDERS
-  // Now you can pass (ID, Title, Body, HOUR, MINUTE)
-
-  // TEST: If it is 7:10 AM, set this to 7, 12 (2 mins later)
-  await NotificationService.scheduleDaily(
-      1, "Hydration Check 💧", "Time to drink some water!", 14, 41);
-
-  // Lunch at 1:00 PM
-  await NotificationService.scheduleDaily(
-      2, "Lunch Time 🥗", "Don't forget to scan your meal.", 13, 0);
-
-  // Recap at 8:00 PM
-  await NotificationService.scheduleDaily(
-      3, "Daily Recap 🌙", "Check your calories for the day.", 20, 0);
-
-  // 3. Run App
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      child: const FitLensApp(),
-    ),
-  );
+  runApp(const FitLensApp());
 }
 
 class FitLensApp extends StatelessWidget {
@@ -39,12 +18,10 @@ class FitLensApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'FitLens',
-      themeMode: themeProvider.themeMode,
+      // Simple Theme (No Provider, No Dark Mode button logic)
       theme: ThemeData(
         brightness: Brightness.light,
         primarySwatch: Colors.green,

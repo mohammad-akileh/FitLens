@@ -362,13 +362,13 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                   else
                     Column(children: [
                       _buildMealTile("Breakfast", "Recommended 300-500 kcal",
-                          "assets/egg.png"),
+                          "assets/breakfast.jpg"),
                       _buildMealTile("Lunch", "Recommended 500-700 kcal",
-                          "assets/lunch_bowl.png"),
+                          "assets/lunch.jpg"),
                       _buildMealTile("Dinner", "Recommended 400-600 kcal",
-                          "assets/dinner.png"),
+                          "assets/dinner.jpg"),
                       _buildMealTile("Snack", "Recommended 100-200 kcal",
-                          "assets/snack.png"),
+                          "assets/snack.jpg"),
                     ]),
                 ],
               ),
@@ -530,7 +530,7 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                       color: Colors.blueAccent, size: 18),
                   const SizedBox(width: 5),
                   Text("Water Intake",
-                      style: TextStyle(fontSize: 14, color: Colors.grey[400]))
+                      style: TextStyle(fontSize: 14, color: cardDark))
                 ]),
                 const SizedBox(height: 10),
                 TweenAnimationBuilder<double>(

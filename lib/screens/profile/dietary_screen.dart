@@ -61,7 +61,7 @@ class _DietaryScreenState extends State<DietaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F2),
+      backgroundColor: const Color(0xFFDFE2D1),
       appBar: AppBar(
         backgroundColor: Colors.transparent, 
         elevation: 0,

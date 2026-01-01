@@ -1,9 +1,9 @@
-// lib/screens/splash_screen_video.dart
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../auth_gate.dart';
 import '../firebase_options.dart';
+import 'package:fitlens/services/fcm_service.dart'; // 👈 IMPORT FCM SERVICE
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,7 +20,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.initState();
     _controller = AnimationController(vsync: this);
 
-    // Listen for when the animation finishes
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _navigateToNextScreen();
@@ -34,13 +33,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // 2. Add a tiny minimum delay so the animation doesn't flash too fast
+    // 2. Add delay for animation
     final animationFuture = Future.delayed(const Duration(seconds: 2));
 
-    // Wait for both
+    // Wait for BOTH to finish
     await Future.wait([firebaseFuture, animationFuture]);
 
-    // 3. Start the animation
+    // 🔴 3. NOW INIT FCM (Safe because Firebase is done!)
+    // This will print the Token to your console
+    try {
+      await FcmService.init();
+    } catch (e) {
+      print("⚠️ FCM Init Error (Non-fatal): $e");
+    }
+
+    // 4. Start the animation
     _controller.forward();
   }
 
@@ -59,36 +66,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // Get screen size for responsiveness
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white, // Matches your animation background
+      backgroundColor: Colors.white,
       body: SizedBox(
         width: screenWidth,
         height: screenHeight,
         child: Lottie.asset(
-          'assets/Flow.json', // ⚠️ Verify this name is correct!
-
+          'assets/FlowLast.json',
           controller: _controller,
-
-          // 🛑 STOP THE LOOPING!
           repeat: false,
-
-          // 📏 RESPONSIVE FIT
-          // 'cover' fills the screen. Since you manually moved the girl,
-          // this will now look perfect on all screens.
           fit: BoxFit.cover,
-
-          // 🎯 ALIGNMENT
-          // Centers the video. Since you edited the girl's position,
-          // Center is usually safest now.
           alignment: Alignment.center,
-
           width: screenWidth,
           height: screenHeight,
-
           onLoaded: (composition) {
             _controller.duration = composition.duration;
             _startInitialization();
