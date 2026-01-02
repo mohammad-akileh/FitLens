@@ -14,7 +14,8 @@ class Recipe {
   final List<String> ingredients;
 
   // 🛡️ SHARED BACKUP IMAGE
-  static const String fallbackImage = "https://i.postimg.cc/T2cPsMKx/project2.jpg";
+  //https://i.postimg.cc/T2cPsMKx/project2.jpg
+  static const String fallbackImage = "https://i.postimg.cc/hGCWgZc6/jood.jpg";
 
   Recipe({
     required this.title,

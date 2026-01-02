@@ -45,9 +45,15 @@ class _RecipesTabState extends State<RecipesTab> {
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
-          var data = snapshot.data!.data() as Map<String, dynamic>;
-          int target = (data['target_calories'] ?? 2000).toInt();
-          int current = (data['current_calories'] ?? 0).toInt();
+          // 🛡️ SAFEST WAY TO READ DATA
+          // checks if data exists, handles nulls, handles doubles/ints safely
+          var data = snapshot.data!.data() as Map<String, dynamic>?;
+
+          // Safety Default: If data is totally null, assume 0
+          if (data == null) return const Center(child: Text("Loading Profile..."));
+
+          int target = (data['target_calories'] as num? ?? 2000).toInt();
+          int current = (data['current_calories'] as num? ?? 0).toInt();
           int remaining = target - current;
 
           // DYNAMIC REFRESH LOGIC (Normal Cache)
@@ -99,7 +105,7 @@ class _RecipesTabState extends State<RecipesTab> {
                       return const Center(child: Text("No recipes found."));
                     }
 
-                    // 🔴 ADDED REFRESH INDICATOR HERE
+                    // 🔴 REFRESH INDICATOR (The Fix)
                     return RefreshIndicator(
                       onRefresh: () async {
                         // FORCE REFRESH: Bust the cache
@@ -150,9 +156,10 @@ class _RecipesTabState extends State<RecipesTab> {
                     height: 150,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    // Safety check for broken images
                     errorBuilder: (context, error, stackTrace) {
                       return Image.network(
-                        Recipe.fallbackImage,
+                        Recipe.fallbackImage, // Uses shared backup
                         height: 150,
                         width: double.infinity,
                         fit: BoxFit.cover,
@@ -191,8 +198,9 @@ class _RecipesTabState extends State<RecipesTab> {
     );
   }
 }
+
 // ------------------------------------------------------------------
-// ✅ PASTE THIS AT THE VERY BOTTOM OF recipes_tab.dart
+// ✅ FAVORITE BUTTON (Ensured Included)
 // ------------------------------------------------------------------
 
 class FavoriteButton extends StatelessWidget {
