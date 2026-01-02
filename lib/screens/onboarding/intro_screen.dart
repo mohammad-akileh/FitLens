@@ -59,7 +59,8 @@ class IntroScreen extends StatelessWidget {
                   topRight: Radius.circular(40),
                 ),
               ),
-              // ✅ FIX: "SafeArea" ensures content isn't covered by the home button
+              
+              
               child: SafeArea(
                 top: false, // We don't worry about the top notch here
                 child: Padding(

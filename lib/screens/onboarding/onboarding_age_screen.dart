@@ -125,8 +125,6 @@ class _OnboardingAgeScreenState extends State<OnboardingAgeScreen> {
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
 
                                   // --- COLOR FIX ---
-                                  // Selected: Deep Sage (#5F7E5B)
-                                  // Unselected: Grey
                                   color: isSelected ? mainTextColor : Colors.grey[400],
                                   // ----------------
                                 ),

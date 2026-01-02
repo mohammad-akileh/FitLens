@@ -20,11 +20,11 @@ class ApiService {
       request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
 
       // ✅ FIX 1: TIMEOUT HANDLER
-      // If internet drops or server hangs, stop after 20 seconds.
       var streamedResponse = await request.send().timeout(
         const Duration(seconds: 20),
         onTimeout: () {
-          throw Exception("Connection timed out. Please check your internet.");
+          // 🔴 Throw CLEAN text, not Exception object
+          throw "Connection timed out. Please check your internet. 📶";
         },
       );
 
@@ -32,13 +32,10 @@ class ApiService {
 
       if (response.statusCode == 200) {
         // ✅ FIX 2: BLACK PICTURE SAFETY
-        // If AI returns plain text (like "No food found") instead of JSON,
-        // this check prevents the app from crashing.
         if (_isValidJson(response.body)) {
-          return response.body; // It's valid JSON, send it to UI.
+          return response.body;
         } else {
           print("⚠️ AI returned text, not JSON. Handling safely.");
-          // Return a safe "Empty" JSON so the UI doesn't crash
           return jsonEncode({
             "items": [],
             "summary": "No food detected",
@@ -46,13 +43,19 @@ class ApiService {
           });
         }
       } else {
-        throw Exception("Server Error: ${response.statusCode}");
+        throw "Server Error: ${response.statusCode}. Please try again.";
       }
     } catch (e) {
       print("Error in analyzeImage: $e");
-      // ✅ FIX 3: Internet Error Handling
-      // Return safe empty data instead of crashing the app
-      throw Exception("Network Error: $e");
+
+      // ✅ FIX 3: BEAUTIFUL ERROR HANDLING
+      // If it's a specific internet error, say so clearly.
+      if (e.toString().contains("SocketException") || e.toString().contains("Network")) {
+        throw "No internet connection. Please check your settings. 📶";
+      }
+
+      // Otherwise, just throw the message directly (without 'Exception:')
+      throw e.toString().replaceAll("Exception: ", "");
     }
   }
 
@@ -71,20 +74,18 @@ class ApiService {
       request.fields['wrong_item'] = wrongItem;
       request.fields['correction'] = userCorrection;
 
-      // ✅ FIX: TIMEOUT ADDED HERE TOO
       var streamedResponse = await request.send().timeout(
         const Duration(seconds: 20),
         onTimeout: () {
-          throw Exception("Correction timed out.");
+          throw "Correction timed out. Please try again.";
         },
       );
 
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        // Safety check for Correction as well
         if (!_isValidJson(response.body)) {
-          throw Exception("AI returned invalid format.");
+          throw "AI returned invalid format.";
         }
 
         var decoded = jsonDecode(response.body);
@@ -93,18 +94,20 @@ class ApiService {
         return {
           "food_name": decoded['food_name'] ?? decoded['item'] ?? userCorrection,
           "serving_unit": decoded['serving_unit'] ?? decoded['unit'] ?? "1 serving",
-          // 🧠 Regex Parsers
           "calories_per_serving": _smartFind(decoded, ['calories_per_serving', 'calories', 'kcal']),
           "protein_per_serving": _smartFind(decoded, ['protein_per_serving', 'protein', 'prot']),
           "carbs_per_serving": _smartFind(decoded, ['carbs_per_serving', 'carbohydrates', 'carbs', 'carb']),
           "fat_per_serving": _smartFind(decoded, ['fat_per_serving', 'fat']),
         };
       } else {
-        throw Exception("Correction Error: ${response.statusCode}");
+        throw "Correction Error: ${response.statusCode}";
       }
     } catch (e) {
       print("ERROR IN API: $e");
-      throw Exception("Failed to correct item: $e");
+      if (e.toString().contains("SocketException")) {
+        throw "No internet connection. 📶";
+      }
+      throw e.toString().replaceAll("Exception: ", "");
     }
   }
 
@@ -120,11 +123,9 @@ class ApiService {
 
   // 🕵️‍♂️ SHERLOCK HELPER
   num _smartFind(Map<String, dynamic> data, List<String> keys) {
-    // 1. Look at Top Level
     for (String key in keys) {
       if (data.containsKey(key)) return _parseValue(data[key]);
     }
-    // 2. Look Inside "nutritional_information"
     if (data.containsKey('nutritional_information')) {
       var nested = data['nutritional_information'];
       if (nested is Map<String, dynamic>) {

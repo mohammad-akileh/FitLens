@@ -186,7 +186,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
 
               const Spacer(),
 
-              // 🩺 MEDICAL NOTE (The modification you asked for)
+              // MEDICAL NOTE 
               Container(
                 padding: const EdgeInsets.all(10),
                 margin: const EdgeInsets.only(bottom: 10),

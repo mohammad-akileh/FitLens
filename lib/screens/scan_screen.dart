@@ -23,7 +23,7 @@ class _ScanScreenState extends State<ScanScreen> {
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color buttonColor = const Color(0xFFF6F5F0);
 
-  // 1. Pick Image (Updated to fix the "Weird Message")
+  // 1. Pick Image
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
@@ -33,41 +33,23 @@ class _ScanScreenState extends State<ScanScreen> {
         });
       }
     } catch (e) {
-      // 🎨 HERE IS THE FIX
-      // Instead of showing the raw error 'e', we pick a nice message.
       String niceMessage = "Could not open camera.";
-
-      // If the error text contains "permission" or "access", be specific
       if (e.toString().toLowerCase().contains("permission") ||
           e.toString().toLowerCase().contains("access") ||
           e.toString().toLowerCase().contains("denied")) {
         niceMessage = "Camera permission is needed to scan your meal 📸";
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(niceMessage),
-            backgroundColor: Colors.orange, // Orange is friendlier than Red for permissions
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
-  void _showSnack(String msg, Color color) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: color));
+      _showBeautifulError(niceMessage, isWarning: true);
     }
   }
 
   // 2. Analyze & Navigate
   Future<void> _analyzeMeal() async {
+    // Basic connectivity check
     bool result = await InternetConnection().hasInternetAccess;
     if (!result) {
-      _showSnack("No Internet! Please check your connection.", Colors.red);
+      _showBeautifulError("No Internet! Please check your connection 📶");
       return;
     }
     if (_imageFile == null) return;
@@ -89,13 +71,50 @@ class _ScanScreenState extends State<ScanScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      // 🎨 HERE IS THE BEAUTIFUL EXCEPTION
+      String message = e.toString();
+
+      // If the message is super long, shorten it
+      if (message.length > 100) {
+        message = "Something went wrong. Please try again.";
       }
+
+      _showBeautifulError(message);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // 🎨 BEAUTIFUL ERROR HELPER
+  void _showBeautifulError(String message, {bool isWarning = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+                isWarning ? Icons.warning_amber_rounded : Icons.wifi_off_rounded,
+                color: Colors.white
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isWarning ? Colors.orange : Colors.red.shade400,
+        behavior: SnackBarBehavior.floating, // Floating looks much better
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override

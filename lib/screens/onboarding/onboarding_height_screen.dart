@@ -172,7 +172,7 @@ class _OnboardingHeightScreenState extends State<OnboardingHeightScreen> {
                       ScaleLineStyle(color: Colors.grey, width: 1, height: 15, scale: 5),
                       ScaleLineStyle(color: Colors.grey, width: 1, height: 15, scale: -1),
                     ],
-                    // 🛡️ FIX HERE: Cast 'num' to 'double'
+                   
                     onValueChanged: (value) {
                       setState(() => _currentHeightCm = value.toDouble());
                     },
