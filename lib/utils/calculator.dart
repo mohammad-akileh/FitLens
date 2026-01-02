@@ -43,7 +43,7 @@ class Calculator {
       'carb': (dailyCalories * carbPct) / 4,
       'fat': (dailyCalories * fatPct) / 9,
     };
-  }
+  } 
 
   // 4. Calculate Water Need
   static double calculateWater({required double weightKg, double exerciseHours = 0}) { // Changed weightKg to double
