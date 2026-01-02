@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../keys.dart';
+import '../keys.dart'; // Ensure this file exists as we discussed!
+
 class Recipe {
   final String title;
   final String imageUrl;
@@ -12,8 +13,7 @@ class Recipe {
   final String sourceUrl;
   final List<String> ingredients;
 
-  // 🛡️ SHARED BACKUP IMAGE (If the real one breaks)
-  //
+  // 🛡️ SHARED BACKUP IMAGE
   static const String fallbackImage = "https://i.postimg.cc/T2cPsMKx/project2.jpg";
 
   Recipe({
@@ -41,7 +41,6 @@ class Recipe {
   factory Recipe.fromJson(Map<String, dynamic> json) {
     return Recipe(
       title: json['label'] ?? "Unknown Meal",
-      // If image is missing from DB, use fallback
       imageUrl: json['image'] ?? fallbackImage,
       calories: (json['calories'] as num?)?.toInt() ?? 0,
       protein: (json['protein'] as num?)?.toInt() ?? 0,
@@ -54,10 +53,17 @@ class Recipe {
 
   factory Recipe.fromEdamam(Map<String, dynamic> json) {
     final nutrients = json['totalNutrients'] ?? {};
+
+    // 🔴 THE FIX: FORCE HTTPS 🔴
+    // Edamam sends 'http', which Android blocks. We change it to 'https'.
+    String imgUrl = json['image'] ?? fallbackImage;
+    if (imgUrl.startsWith("http://")) {
+      imgUrl = imgUrl.replaceFirst("http://", "https://");
+    }
+
     return Recipe(
       title: json['label'] ?? "Unknown Meal",
-      // If API sends null image, use fallback
-      imageUrl: json['image'] ?? fallbackImage,
+      imageUrl: imgUrl, // ✅ Use the secure URL
       calories: (json['calories'] as num?)?.toInt() ?? 0,
       protein: (nutrients['PROCNT']?['quantity'] as num? ?? 0).toInt(),
       fat: (nutrients['FAT']?['quantity'] as num? ?? 0).toInt(),
@@ -69,7 +75,8 @@ class Recipe {
 }
 
 class RecipeService {
-  static final String _appId = RecipeKeys.appId ;
+  // Uses keys from your keys.dart file
+  static final String _appId = RecipeKeys.appId;
   static const String _appKey = RecipeKeys.appKey;
   static const String _baseUrl = "https://api.edamam.com/api/recipes/v2";
 
@@ -95,7 +102,6 @@ class RecipeService {
     int safeTarget = target < 300 ? 500 : target;
 
     try {
-      // ✅ FIX: Increased 'to=80' to get MORE recipes
       final url = Uri.parse(
           "$_baseUrl?type=public&q=healthy&app_id=$_appId&app_key=$_appKey&calories=0-$safeTarget&to=80&random=true"
       );
@@ -131,7 +137,7 @@ class RecipeService {
   static final List<Recipe> _backupRecipes = [
     Recipe(
       title: "Classic Hummus Plate",
-      imageUrl: Recipe.fallbackImage, // Use shared fallback
+      imageUrl: Recipe.fallbackImage,
       calories: 400, protein: 12, carbs: 45, fat: 20,
       sourceUrl: "", ingredients: ["Chickpeas", "Tahini", "Lemon", "Olive Oil"],
     ),

@@ -14,11 +14,15 @@ class MealHistoryDetailScreen extends StatefulWidget {
   final File? imageFile;
   final String? aiResponse;
 
+  // 🔴 NEW: Flag to lock the screen
+  final bool isReadOnly;
+
   const MealHistoryDetailScreen({
     super.key,
     this.mealData,
     this.imageFile,
     this.aiResponse,
+    this.isReadOnly = false, // Default is false (Editable)
   });
 
   @override
@@ -30,7 +34,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   List<dynamic> _foodItems = [];
   bool _isLoading = false;
 
-  // Colors
   final Color mainTextColor = const Color(0xFF5F7E5B);
   final Color cardBgColor = const Color(0xFFF6F5F0);
 
@@ -87,8 +90,13 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     setState(() => _foodItems = preparedItems);
   }
 
+  // ... (Keep existing _updateServing, _editItem, _performCorrection, _addMissingItem, _performAddItem, _deleteItem methods exactly as they are)
+  // I am hiding them here to save space, but DO NOT DELETE THEM from your code.
+  // Just ensure you copy the Widget Build below carefully.
+
   // --- SERVING LOGIC ---
   void _updateServing(int index, double change) {
+    if (widget.isReadOnly) return; // 🔒 Lock Logic
     setState(() {
       double current = (_foodItems[index]['user_serving'] ?? 1.0).toDouble();
       double newServing = current + change;
@@ -98,8 +106,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     });
   }
 
-  // --- EDIT ITEM ---
   void _editItem(int index) {
+    if (widget.isReadOnly) return; // 🔒 Lock Logic
     TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
@@ -116,7 +124,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   }
 
   Future<void> _performCorrection(int index, String correction) async {
-    setState(() => _isLoading = true); // This triggers the generic loader
+    setState(() => _isLoading = true);
     try {
       Map<String, dynamic> newResult = await ApiService().correctScan(
           widget.imageFile,
@@ -138,7 +146,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     }
   }
 
-  // --- ADD MISSING ITEM ---
   void _addMissingItem() {
     TextEditingController controller = TextEditingController();
     showDialog(
@@ -156,7 +163,7 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
   }
 
   Future<void> _performAddItem(String name) async {
-    setState(() => _isLoading = true); // This triggers the generic loader
+    setState(() => _isLoading = true);
     try {
       Map<String, dynamic> newItem =
       await ApiService().correctScan(widget.imageFile, "nothing", name);
@@ -176,8 +183,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     }
   }
 
-  // --- DELETE ITEM ---
   void _deleteItem(int index) {
+    if (widget.isReadOnly) return; // 🔒 Lock Logic
     final deletedItem = _foodItems[index];
     setState(() {
       _foodItems.removeAt(index);
@@ -200,14 +207,9 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
     );
   }
 
-  // --- SAVE MEAL (THE FIX 🛡️) ---
   void _saveMeal() async {
-    // 1. Validation
+    // Keep your existing Save Logic
     if (_foodItems.isEmpty) return;
-
-    // 🛑 NO setState here. We show a BEAUTIFUL Dialog instead.
-
-    // 2. 🎨 BEAUTIFUL UI DIALOG (The White Card)
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -230,10 +232,8 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Beautiful Green Spinner
               CircularProgressIndicator(color: Color(0xFF5F7E5B)),
               SizedBox(height: 25),
-              // THE TEXT YOU WANTED
               Text(
                 "Saving your meal...",
                 style: TextStyle(
@@ -253,22 +253,19 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         String permanentUrl = "";
-
         if (widget.imageFile != null) {
           permanentUrl = await DatabaseService().uploadImage(widget.imageFile!);
         } else {
           permanentUrl = widget.mealData?['image_url'] ?? "";
         }
-
         await DatabaseService().saveMeal(
           uid: uid,
           foodItems: _foodItems,
           imageUrl: permanentUrl,
           mealType: "Scanned Meal",
         );
-
         if (mounted) {
-          Navigator.pop(context); // Close the Beautiful Dialog
+          Navigator.pop(context);
           _showSnack("Meal saved!", Colors.green);
           Navigator.pushAndRemoveUntil(
               context,
@@ -278,13 +275,12 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // Close Dialog if error
+        Navigator.pop(context);
         _showSnack("Error: $e", Colors.red);
       }
     }
   }
 
-  // --- HELPERS ---
   Widget _buildInputDialog(
       {required String title,
         required String hint,
@@ -328,12 +324,11 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
 
     return Stack(
       children: [
-        // 1. MAIN UI
         Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
-              title: const Text("Meal Breakdown",
-                  style: TextStyle(color: Colors.black)),
+              title: Text(widget.isReadOnly ? "Meal Details" : "Meal Breakdown", // 🔒 Changed Title
+                  style: const TextStyle(color: Colors.black)),
               backgroundColor: Colors.white,
               elevation: 0,
               iconTheme: const IconThemeData(color: Colors.black)),
@@ -350,7 +345,9 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount: _foodItems.length + 1,
                   itemBuilder: (context, index) {
+                    // 🔒 HIDE ADD BUTTON
                     if (index == _foodItems.length) {
+                      if (widget.isReadOnly) return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: 10, bottom: 30),
                         child: TextButton.icon(
@@ -365,8 +362,15 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                         ),
                       );
                     }
+
                     final item = _foodItems[index];
                     final key = Key(item['uuid'] ?? "key_$index");
+
+                    // 🔒 DISABLE SWIPE TO DELETE
+                    if (widget.isReadOnly) {
+                      return _buildFoodCard(item, index);
+                    }
+
                     return Dismissible(
                       key: key,
                       direction: DismissDirection.endToStart,
@@ -387,31 +391,31 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                 ),
               ),
 
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _saveMeal,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: mainTextColor,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30))),
-                    child: const Text("Save Meal",
-                        style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
+              // 🔒 HIDE SAVE BUTTON
+              if (!widget.isReadOnly)
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _saveMeal,
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: mainTextColor,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30))),
+                      child: const Text("Save Meal",
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
 
-        // 2. GENERIC LOADER (For Editing only)
-        // I CHANGED THE TEXT HERE SO "CONSULTING AI" IS GONE FOREVER 🚫
         if (_isLoading)
           Positioned.fill(
             child: Stack(
@@ -442,7 +446,6 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                         const CircularProgressIndicator(
                             color: Color(0xFF5F7E5B)),
                         const SizedBox(height: 20),
-                        // 👇 TEXT CHANGED! "AI" IS GONE!
                         const Text(
                           "Processing Data...",
                           style: TextStyle(
@@ -493,13 +496,15 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                               overflow: TextOverflow.ellipsis),
                         ),
                         const SizedBox(width: 5),
-                        InkWell(
-                          onTap: () => _editItem(index),
-                          child: const Padding(
-                              padding: EdgeInsets.all(4.0),
-                              child: Icon(Icons.edit,
-                                  size: 18, color: Colors.grey)),
-                        ),
+                        // 🔒 HIDE EDIT ICON
+                        if (!widget.isReadOnly)
+                          InkWell(
+                            onTap: () => _editItem(index),
+                            child: const Padding(
+                                padding: EdgeInsets.all(4.0),
+                                child: Icon(Icons.edit,
+                                    size: 18, color: Colors.grey)),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -514,16 +519,24 @@ class _MealHistoryDetailScreenState extends State<MealHistoryDetailScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          InkWell(
+                          // 🔒 DISABLE INTERACTION (remove InkWell if ReadOnly)
+                          widget.isReadOnly
+                              ? Icon(Icons.remove_circle, size: 20, color: Colors.grey[300])
+                              : InkWell(
                               onTap: () => _updateServing(index, -0.5),
                               child: Icon(Icons.remove_circle,
                                   size: 20, color: mainTextColor)),
+
                           const SizedBox(width: 8),
                           Text("$servingFactor x",
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 14)),
                           const SizedBox(width: 8),
-                          InkWell(
+
+                          // 🔒 DISABLE INTERACTION
+                          widget.isReadOnly
+                              ? Icon(Icons.add_circle, size: 20, color: Colors.grey[300])
+                              : InkWell(
                               onTap: () => _updateServing(index, 0.5),
                               child: Icon(Icons.add_circle,
                                   size: 20, color: mainTextColor)),
