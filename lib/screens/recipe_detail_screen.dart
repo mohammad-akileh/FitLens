@@ -27,7 +27,11 @@ class RecipeDetailScreen extends StatelessWidget {
               background: Image.network(
                 recipe.imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (c,o,s) => Container(color: Colors.grey),
+                // 🔴 FIX: Show Fallback image instead of Grey Box
+                errorBuilder: (c,o,s) => Image.network(
+                    Recipe.fallbackImage,
+                    fit: BoxFit.cover
+                ),
               ),
             ),
           ),
@@ -39,7 +43,6 @@ class RecipeDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Macros Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -51,7 +54,6 @@ class RecipeDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 25),
 
-                  // Ingredients List
                   const Text("Ingredients", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   ...recipe.ingredients.map((ing) => Padding(

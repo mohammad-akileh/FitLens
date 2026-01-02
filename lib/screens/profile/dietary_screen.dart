@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../utils/calculator.dart'; // 🧠 The Brain
+import '../../utils/calculator.dart';
 
 class DietaryScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -15,12 +15,19 @@ class _DietaryScreenState extends State<DietaryScreen> {
   String _selectedDiet = 'Standard';
   bool _isSaving = false;
 
-  final List<String> _dietOptions = ['Standard', 'Keto', 'High Protein', 'Vegan'];
+  // 🟢 ADDED MEDICAL OPTIONS HERE
+  final List<String> _dietOptions = [
+    'Standard',
+    'Keto',
+    'High Protein',
+    'Vegan',
+    'Diabetes Friendly', // 🩺
+    'Hypertension (DASH)' // 🩺
+  ];
 
   @override
   void initState() {
     super.initState();
-    // Load existing preference or default to Standard
     _selectedDiet = widget.data['diet_type'] ?? 'Standard';
   }
 
@@ -28,17 +35,14 @@ class _DietaryScreenState extends State<DietaryScreen> {
     setState(() => _isSaving = true);
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
-      
-      // 1. Get current Calories (we aren't changing calories here, just the SPLIT)
+
       double currentCals = (widget.data['target_calories'] ?? 2000).toDouble();
 
-      // 2. 🧠 Recalculate Macros based on NEW Diet
       Map<String, double> newMacros = Calculator.calculateMacros(
-        currentCals, 
-        dietType: _selectedDiet
+          currentCals,
+          dietType: _selectedDiet
       );
 
-      // 3. Save to DB
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'diet_type': _selectedDiet,
         'target_protein': newMacros['protein']!.round(),
@@ -63,7 +67,7 @@ class _DietaryScreenState extends State<DietaryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFDFE2D1),
       appBar: AppBar(
-        backgroundColor: Colors.transparent, 
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
         title: const Text("DIETARY PREFERENCES", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
@@ -80,33 +84,38 @@ class _DietaryScreenState extends State<DietaryScreen> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("Select your active diet:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-              ..._dietOptions.map((diet) => RadioListTile<String>(
-                title: Text(diet),
-                subtitle: Text(_getDietDescription(diet)),
-                value: diet,
-                groupValue: _selectedDiet,
-                activeColor: Colors.green,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (val) => setState(() => _selectedDiet = val!),
-              )),
-            ],
+          child: SingleChildScrollView( // Added scroll just in case
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Select your active diet:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 15),
+                ..._dietOptions.map((diet) => RadioListTile<String>(
+                  title: Text(diet, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(_getDietDescription(diet), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  value: diet,
+                  groupValue: _selectedDiet,
+                  activeColor: Colors.green,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) => setState(() => _selectedDiet = val!),
+                )),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  // 🟢 SCIENTIFIC DESCRIPTIONS ADDED HERE
   String _getDietDescription(String diet) {
     switch (diet) {
       case 'Keto': return "High fat, very low carbs.";
       case 'High Protein': return "Best for building muscle.";
       case 'Vegan': return "Plant-based, higher carbs.";
+      case 'Diabetes Friendly': return "Controlled carbs to manage blood sugar."; // 🩺
+      case 'Hypertension (DASH)': return "Heart-healthy, low sodium focus."; // 🩺
       default: return "Balanced mix of all nutrients.";
     }
   }

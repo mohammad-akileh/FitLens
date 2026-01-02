@@ -50,7 +50,7 @@ class _RecipesTabState extends State<RecipesTab> {
           int current = (data['current_calories'] ?? 0).toInt();
           int remaining = target - current;
 
-          // DYNAMIC REFRESH LOGIC
+          // DYNAMIC REFRESH LOGIC (Normal Cache)
           if (_lastFetchedTarget == null || (remaining - _lastFetchedTarget!).abs() > 50) {
             _lastFetchedTarget = remaining;
             _recommendationsFuture = RecipeService.getSmartRecommendations(remaining);
@@ -99,12 +99,23 @@ class _RecipesTabState extends State<RecipesTab> {
                       return const Center(child: Text("No recipes found."));
                     }
 
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: displayList.length,
-                      itemBuilder: (context, index) {
-                        return _buildRecipeCard(displayList[index], context);
+                    // 🔴 ADDED REFRESH INDICATOR HERE
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        // FORCE REFRESH: Bust the cache
+                        var newRecipes = await RecipeService.getSmartRecommendations(remaining, forceRefresh: true);
+                        setState(() {
+                          _recommendationsFuture = Future.value(newRecipes);
+                          _lastFetchedTarget = remaining; // Update tracker
+                        });
                       },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: displayList.length,
+                        itemBuilder: (context, index) {
+                          return _buildRecipeCard(displayList[index], context);
+                        },
+                      ),
                     );
                   },
                 ),
@@ -130,7 +141,6 @@ class _RecipesTabState extends State<RecipesTab> {
         ),
         child: Column(
           children: [
-            // IMAGE + FAVORITE BUTTON STACK
             Stack(
               children: [
                 ClipRRect(
@@ -140,10 +150,9 @@ class _RecipesTabState extends State<RecipesTab> {
                     height: 150,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    // Safety check for broken images
                     errorBuilder: (context, error, stackTrace) {
                       return Image.network(
-                        Recipe.fallbackImage, // Uses shared backup
+                        Recipe.fallbackImage,
                         height: 150,
                         width: double.infinity,
                         fit: BoxFit.cover,
@@ -151,7 +160,6 @@ class _RecipesTabState extends State<RecipesTab> {
                     },
                   ),
                 ),
-                // Favorite Button
                 Positioned(
                   bottom: 10,
                   right: 10,
@@ -159,7 +167,6 @@ class _RecipesTabState extends State<RecipesTab> {
                 )
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.all(15),
               child: Column(
@@ -184,10 +191,10 @@ class _RecipesTabState extends State<RecipesTab> {
     );
   }
 }
+// ------------------------------------------------------------------
+// ✅ PASTE THIS AT THE VERY BOTTOM OF recipes_tab.dart
+// ------------------------------------------------------------------
 
-// ------------------------------------------------------------------
-// ✅ THE CORRECT FAVORITE BUTTON (Stateless + StreamBuilder)
-// ------------------------------------------------------------------
 class FavoriteButton extends StatelessWidget {
   final Recipe recipe;
   const FavoriteButton({super.key, required this.recipe});

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../keys.dart'; // Ensure this file exists as we discussed!
+import '../keys.dart';
 
 class Recipe {
   final String title;
@@ -54,8 +54,7 @@ class Recipe {
   factory Recipe.fromEdamam(Map<String, dynamic> json) {
     final nutrients = json['totalNutrients'] ?? {};
 
-    // 🔴 THE FIX: FORCE HTTPS 🔴
-    // Edamam sends 'http', which Android blocks. We change it to 'https'.
+    // 🔴 FORCE HTTPS
     String imgUrl = json['image'] ?? fallbackImage;
     if (imgUrl.startsWith("http://")) {
       imgUrl = imgUrl.replaceFirst("http://", "https://");
@@ -63,7 +62,7 @@ class Recipe {
 
     return Recipe(
       title: json['label'] ?? "Unknown Meal",
-      imageUrl: imgUrl, // ✅ Use the secure URL
+      imageUrl: imgUrl,
       calories: (json['calories'] as num?)?.toInt() ?? 0,
       protein: (nutrients['PROCNT']?['quantity'] as num? ?? 0).toInt(),
       fat: (nutrients['FAT']?['quantity'] as num? ?? 0).toInt(),
@@ -75,19 +74,19 @@ class Recipe {
 }
 
 class RecipeService {
-  // Uses keys from your keys.dart file
   static final String _appId = RecipeKeys.appId;
   static const String _appKey = RecipeKeys.appKey;
   static const String _baseUrl = "https://api.edamam.com/api/recipes/v2";
 
-  static Future<List<Recipe>> getSmartRecommendations(int targetCalories) async {
+  // 🔴 UPDATED: Added forceRefresh parameter
+  static Future<List<Recipe>> getSmartRecommendations(int targetCalories, {bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
 
     int? cachedTarget = prefs.getInt('cached_target_calories');
     String? cachedData = prefs.getString('cached_recipes');
 
-    // Cache Logic
-    if (cachedData != null && cachedTarget != null) {
+    // 🔴 NEW LOGIC: Only use cache if forceRefresh is FALSE
+    if (!forceRefresh && cachedData != null && cachedTarget != null) {
       if ((targetCalories - cachedTarget).abs() < 50) {
         print("💾 Loading from Cache");
         List<dynamic> decoded = json.decode(cachedData);
@@ -133,7 +132,6 @@ class RecipeService {
     }
   }
 
-  // 🛡️ BACKUP RECIPES
   static final List<Recipe> _backupRecipes = [
     Recipe(
       title: "Classic Hummus Plate",

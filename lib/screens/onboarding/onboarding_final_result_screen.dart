@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import '../../utils/calculator.dart';
 import '../../auth_gate.dart';
-// Note: We don't need to import onboarding_card.dart here since we use MacroCard
 
 class OnboardingFinalResultScreen extends StatefulWidget {
   final String gender;
@@ -15,8 +14,6 @@ class OnboardingFinalResultScreen extends StatefulWidget {
   final double heightVal;
   final String heightUnit;
   final String goal;
-
-  // New Params
   final String mealFrequency;
   final String weekendHabit;
   final String weekendDays;
@@ -59,7 +56,6 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
   }
 
   void _calculateValues() {
-    // 1. Convert to Metric
     double weightKg = widget.weightUnit.toLowerCase() == 'kg'
         ? widget.weightVal
         : widget.weightVal * 0.453592;
@@ -68,7 +64,6 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
         ? widget.heightVal
         : widget.heightVal * 30.48;
 
-    // 2. Calculate BMR
     double bmr = Calculator.calculateBMR(
       isMale: widget.gender == 'Male',
       weightKg: weightKg,
@@ -76,9 +71,7 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
       age: widget.age,
     );
 
-    // 3. Default Activity (1.375)
     double activityMultiplier = 1.375;
-
     double tdee = bmr * activityMultiplier;
     double adjusted = tdee;
 
@@ -96,7 +89,6 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // Prepare metric values for saving
         double weightKg = widget.weightUnit.toLowerCase() == 'kg'
             ? widget.weightVal
             : widget.weightVal * 0.453592;
@@ -105,20 +97,22 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
             ? widget.heightVal
             : widget.heightVal * 30.48;
 
-        // 💾 SAVE EVERYTHING TO FIRESTORE (Including Units!)
         await _firestore.collection('users').doc(user.uid).update({
           'gender': widget.gender,
           'age': widget.age,
           'weight': weightKg,
-          'weight_unit': widget.weightUnit, // 🟢 SAVING UNIT
+          'weight_unit': widget.weightUnit,
           'height': heightCm,
-          'height_unit': widget.heightUnit, // 🟢 SAVING UNIT
+          'height_unit': widget.heightUnit,
           'goal': widget.goal,
-          'activity_level': 1.375, // Default activity number
+          'activity_level': 1.375,
 
           'meal_frequency': widget.mealFrequency,
           'weekend_habit': widget.weekendHabit,
           'weekend_days': widget.weekendDays,
+
+          // Defaults to Standard diet initially
+          'diet_type': 'Standard',
 
           'target_calories': _targetCalories,
           'target_protein': _targetProtein,
@@ -191,6 +185,29 @@ class _OnboardingFinalResultScreenState extends State<OnboardingFinalResultScree
               ),
 
               const Spacer(),
+
+              // 🩺 MEDICAL NOTE (The modification you asked for)
+              Container(
+                padding: const EdgeInsets.all(10),
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3))
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "Have Diabetes or Hypertension? You can adjust your plan in Dietary Preferences later.",
+                        style: TextStyle(color: Colors.orange[800], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
               // Finish Button
               SizedBox(
