@@ -41,7 +41,7 @@
 
 | Home Screen | AI Scanning | Recipe Hub |
 |:-----------:|:-----------:|:----------:|
-| <img src="https://via.placeholder.com/300x600?text=Home" width="200"> | <img src="https://via.placeholder.com/300x600?text=Scan" width="200"> | <img src="assets/Recipes.jpg" width="200"> |
+| <img src="assets/Home_screen.jpg" width="200"> | <img src="assets/Scan_screen.jpg" width="200"> | <img src="assets/Recipes.jpg" width="200"> |
 
 ---
 
